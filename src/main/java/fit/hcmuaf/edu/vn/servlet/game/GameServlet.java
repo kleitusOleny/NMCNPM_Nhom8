@@ -28,13 +28,14 @@ public class GameServlet extends HttpServlet {
                     String currentUsername = (String) session.getAttribute("user");
                     
                     // Nếu người vào không phải chủ phòng và phòng chưa có quân trắng
-                    if (!room.getBlackPlayer().getUsername().equals(currentUsername)
-                            && room.getWhitePlayer() == null) {
-                        
+                    if (!room.getBlackPlayer().getUsername().equals(currentUsername) && room.getWhitePlayer() == null) {
                         UserDAO userDAO = new UserDAO();
                         room.setWhitePlayer(userDAO.findByUsername(currentUsername));
-                        room.setStatus("PLAYING"); // Đổi trạng thái sang đang thi đấu
+                        room.setStatus("PLAYING");
                         roomDAO.update(room);
+                        
+                        // Quan trọng: Sau khi update, hãy nạp lại room từ DB để đảm bảo Object có đầy đủ data
+                        room = roomDAO.findById(room.getId());
                     }
                     
                     req.setAttribute("currentGame", room);

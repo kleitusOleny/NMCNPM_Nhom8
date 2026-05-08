@@ -5,6 +5,7 @@ import fit.hcmuaf.edu.vn.model.GameRoom;
 import fit.hcmuaf.edu.vn.util.JPAUtil;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Query;
 
 import java.util.List;
 
@@ -57,6 +58,21 @@ public class RoomDAO {
         try {
             em.getTransaction().begin();
             em.persist(move);
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+    }
+    
+    public void removeMoveAt(Long roomId, int x, int y) {
+        EntityManager em = emf.createEntityManager();
+        try {
+            em.getTransaction().begin();
+            Query query = em.createQuery("DELETE FROM GameMove m WHERE m.room.id = :roomId AND m.x = :x AND m.y = :y");
+            query.setParameter("roomId", roomId);
+            query.setParameter("x", x);
+            query.setParameter("y", y);
+            query.executeUpdate();
             em.getTransaction().commit();
         } finally {
             em.close();

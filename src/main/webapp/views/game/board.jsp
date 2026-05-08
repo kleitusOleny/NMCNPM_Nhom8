@@ -208,8 +208,8 @@
 
             <div class="w-full max-w-[700px] flex justify-between items-center mt-6">
                 <div class="flex gap-3">
-                    <button class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Đầu hàng</button>
-                    <button class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Bỏ lượt</button>
+                    <button id="btn-resign" class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Đầu hàng</button>
+                    <button id="btn-pass" class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Bỏ lượt</button>
                 </div>
                 <div id="gt-coords" class="text-xs font-mono text-on-surface-variant opacity-40">Tọa độ: --</div>
             </div>
@@ -261,105 +261,107 @@
     const config = {
         id: "${currentGame.id}",
         size: ${currentGame.boardSize},
-        color: "${isBlack ? 'black' : 'white'}",
+        role: ("${sessionScope.user}" === "${currentGame.blackPlayer.username}") ? "black" : "white",
         spacing: 100 / (${currentGame.boardSize} - 1)
     };
 
+    let currentTurn = "black";
+    let totalStones = 0;
     const ws = new WebSocket("ws://" + window.location.host + "${pageContext.request.contextPath}/ws/game/" + config.id);
 
-    function renderGrid() {
-        const layer = document.getElementById('gt-grid-layer');
-        for (let i = 0; i < config.size; i++) {
-            const pos = i * config.spacing;
-            // Ngang
-            const h = document.createElement('div');
-            h.className = "gt-grid-line w-full h-[1px]";
-            h.style.top = pos + "%";
-            layer.appendChild(h);
-            // Dọc
-            const v = document.createElement('div');
-            v.className = "gt-grid-line h-full w-[1px]";
-            v.style.left = pos + "%";
-            layer.appendChild(v);
-        }
-        if (config.size === 19) {
-            [3, 9, 15].forEach(r => [3, 9, 15].forEach(c => {
-                const s = document.createElement('div');
-                s.className = "gt-hoshi";
-                s.style.top = (r * config.spacing) + "%";
-                s.style.left = (c * config.spacing) + "%";
-                layer.appendChild(s);
-            }));
-        }
-    }
+    ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
 
-    function addStone(x, y, color, manual = true) {
+        if (data.type === "INVALID_MOVE") {
+            alert(data.data); // Hiển thị lỗi Tự sát hoặc Ko
+            return;
+        }
+
+        if (data.type === "REMOVE") {
+            data.data.forEach(stone => {
+                const el = document.querySelector(`[data-pos="\${stone.x}-\${stone.y}"]`);
+                if (el) {
+                    el.classList.add('scale-0');
+                    setTimeout(() => {
+                        el.remove();
+                        totalStones--;
+                        calculateTurn();
+                    }, 200);
+                }
+            });
+        } else {
+            if (data.isHistory || data.color !== config.role) {
+                addStoneToUI(data.x, data.y, data.color);
+            }
+        }
+    };
+
+    function addStoneToUI(x, y, color) {
+        if (document.querySelector(`[data-pos="\${x}-\${y}"]`)) return false;
+
         const layer = document.getElementById('gt-stones-layer');
         const stone = document.createElement('div');
-        const size = config.size === 19 ? 5.2 : (config.size === 13 ? 7.5 : 10.5);
+        const stoneSize = (config.size === 19) ? 5.2 : 7.5;
 
         stone.className = "gt-stone shadow-lg";
-        stone.style.width = size + "%";
-        stone.style.height = size + "%";
+        stone.setAttribute('data-pos', `\${x}-\${y}`);
+        stone.style.width = stoneSize + "%"; stone.style.height = stoneSize + "%";
         stone.style.left = (x * config.spacing) + "%";
         stone.style.top = (y * config.spacing) + "%";
 
-        if (color === 'black') {
-            stone.style.background = "radial-gradient(circle at 35% 35%, #444, #111)";
-        } else {
-            stone.style.background = "radial-gradient(circle at 35% 35%, #fff, #ddd)";
-            stone.style.border = "1px solid rgba(0,0,0,0.15)";
-        }
+        stone.style.background = (color === 'black') ?
+            "radial-gradient(circle at 35% 35%, #444, #111)" :
+            "radial-gradient(circle at 35% 35%, #fff, #ddd)";
+        if (color === 'white') stone.style.border = "1px solid rgba(0,0,0,0.15)";
 
         layer.appendChild(stone);
-        if (manual) ws.send(JSON.stringify({ x, y, color }));
+        totalStones++;
+        calculateTurn();
+        return true;
     }
 
-    const inter = document.getElementById('gt-interaction-layer');
-    inter.addEventListener('click', (e) => {
-        if (currentTurn !== config.color) {
-            alert("Chưa đến lượt của bạn!");
-            return;
-        }
-        const r = inter.getBoundingClientRect();
-        const x = Math.round(((e.clientX - r.left) / r.width) * (config.size - 1));
-        const y = Math.round(((e.clientY - r.top) / r.height) * (config.size - 1));
-        if (x >= 0 && x < config.size && y >= 0 && y < config.size) {
-            addStone(x, y, config.color, true);
-        }
-        currentTurn = (config.color === 'black') ? 'white' : 'black';
+    function calculateTurn() {
+        currentTurn = (totalStones % 2 === 0) ? "black" : "white";
         updateTurnUI();
-    });
-
-    let currentTurn = "black";
-
-    ws.onmessage = (e) => {
-        const m = JSON.parse(e.data);
-        addStone(m.x, m.y, m.color, false);
-
-        currentTurn = (m.color === 'black') ? 'white' : 'black';
-        updateTurnUI();
-    };
+    }
 
     function updateTurnUI() {
+        const isMyTurn = (currentTurn === config.role);
+        const text = document.getElementById('gt-turn-text');
         const dot = document.getElementById('gt-turn-dot');
-        const txt = document.getElementById('gt-turn-text');
 
-        if (currentTurn === config.color) {
-            txt.innerText = "Lượt của bạn (" + (config.color === 'black' ? 'Đen' : 'Trắng') + ")";
-            dot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
-        } else {
-            txt.innerText = "Đang chờ đối thủ...";
-            dot.className = "w-2.5 h-2.5 rounded-full bg-gt-primary opacity-50";
-        }
+        text.innerText = isMyTurn ? "Lượt của bạn (\${config.role === 'black' ? 'Đen' : 'Trắng'})" : "Đang chờ đối thủ...";
+        dot.className = "w-2.5 h-2.5 rounded-full " + (isMyTurn ? "bg-green-500 animate-pulse" : "bg-gt-primary opacity-40");
+        document.getElementById('gt-interaction-layer').style.cursor = isMyTurn ? "crosshair" : "not-allowed";
     }
 
-    ws.onopen = () => {
-        document.getElementById('gt-turn-text').innerText = "Trận đấu đang diễn ra";
-        document.getElementById('gt-turn-dot').classList.remove('animate-pulse');
-    };
+    document.getElementById('gt-interaction-layer').addEventListener('click', (e) => {
+        if (currentTurn !== config.role) return;
 
-    window.onload = renderGrid;
+        const r = e.currentTarget.getBoundingClientRect();
+        const x = Math.round(((e.clientX - r.left) / r.width) * (config.size - 1));
+        const y = Math.round(((e.clientY - r.top) / r.height) * (config.size - 1));
+
+        if (!document.querySelector(`[data-pos="\${x}-\${y}"]`)) {
+            // Chỉ gửi lệnh đi, Server sẽ kiểm tra tính hợp lệ
+            ws.send(JSON.stringify({ x: x, y: y, color: config.role }));
+            // Lưu ý: Không vẽ ngay ở đây để đợi Server xác nhận (hoặc vẽ nháp rồi xóa nếu sai)
+            // Ở đây ta chọn vẽ nháp để mượt mà:
+            if(addStoneToUI(x, y, config.role)) {
+                // Nếu server báo INVALID_MOVE, ta sẽ xóa sau trong onmessage
+            }
+        }
+    });
+
+    window.onload = () => {
+        const grid = document.getElementById('gt-grid-layer');
+        for (let i = 0; i < config.size; i++) {
+            const p = i * config.spacing;
+            const h = document.createElement('div'); h.className="gt-grid-line w-full h-[1px]"; h.style.top=p+"%"; grid.appendChild(h);
+            const v = document.createElement('div'); v.className="gt-grid-line h-full w-[1px]"; v.style.left=p+"%"; grid.appendChild(v);
+        }
+        calculateTurn();
+    };
 </script>
 </body>
 </html>
