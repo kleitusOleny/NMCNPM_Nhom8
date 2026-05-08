@@ -5,6 +5,8 @@ import fit.hcmuaf.edu.vn.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
+import org.mindrot.jbcrypt.BCrypt;
+
 import java.io.IOException;
 
 public class LoginServlet extends HttpServlet {
@@ -28,7 +30,7 @@ public class LoginServlet extends HttpServlet {
         UserDAO userDAO = new UserDAO();
         User user = userDAO.findByUsername(username);
         
-        if (user != null && user.getPassword().equals(password)) {
+        if (user != null && BCrypt.checkpw(password, user.getPassword())) {
             HttpSession session = req.getSession(true);
             session.setAttribute("user", user.getUsername());
             session.setAttribute("role", user.getRole());

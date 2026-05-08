@@ -18,7 +18,7 @@ public class User implements Serializable {
     
     private String email;
     private String fullName;
-    @Column(name = "`role`")
+    @Column(name = "role")
     private String role; // admin hoặc user
     private int elo = 1200; // Mặc định cho người chơi mới
     @Column(name = "user_rank")
