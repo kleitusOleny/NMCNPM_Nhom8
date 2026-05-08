@@ -1,19 +1,22 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <% request.setAttribute("activeTab", "game"); %>
 <!DOCTYPE html>
-
-<html lang="vi"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Cờ Vây System - Trận Đấu</title>
-<!-- Google Fonts -->
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<!-- Material Symbols -->
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<style>
+<html lang="vi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Cờ Vây System - Trận Đấu</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+          rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+          rel="stylesheet"/>
+    <style>
         .material-symbols-outlined {
             font-family: 'Material Symbols Outlined';
             font-weight: normal;
@@ -30,14 +33,19 @@
             -webkit-font-smoothing: antialiased;
         }
     </style>
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<script id="tailwind-config">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     "colors": {
+                        "gt-primary": "#041525",
+                        "gt-wood": "#e1c299",
+                        "gt-wood-dark": "#8b7355",
+                        "gt-stone-black": "#111111",
+                        "gt-stone-white": "#fcfcfc",
                         "on-tertiary": "#ffffff",
                         "surface-bright": "#f7f9fb",
                         "secondary": "#725a39",
@@ -123,224 +131,235 @@
             }
         }
     </script>
+    <style>
+        /* Cô lập CSS cho vùng Game */
+        #gt-game-root .gt-goban {
+            background-color: theme('colors.gt-wood');
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.1), 0 15px 30px rgba(0,0,0,0.2);
+            border-bottom: 6px solid theme('colors.gt-wood-dark');
+            border-right: 6px solid theme('colors.gt-wood-dark');
+        }
+
+        #gt-game-root .gt-grid-line {
+            background-color: rgba(4, 21, 37, 0.35);
+            position: absolute;
+        }
+
+        #gt-game-root .gt-hoshi {
+            background-color: rgba(4, 21, 37, 0.7);
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Tránh xung đột với Sidebar chính */
+        .gt-info-sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            border-left: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .gt-stone {
+            position: absolute;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+    </style>
 </head>
-<body class="bg-surface text-on-surface font-body-main flex h-screen overflow-hidden antialiased">
-<!-- SideNavBar (Shared Component) -->
+<body class="bg-background font-body-main flex h-screen overflow-hidden antialiased">
+
 <jsp:include page="/views/layout/user-sidebar.jsp" />
-<!-- Main Content Wrapper -->
-<div class="flex-1 flex flex-col min-w-0 bg-background relative z-10">
-<!-- TopNavBar (Shared Component) -->
-<header class="bg-surface-container-lowest flex justify-between items-center w-full px-margin py-md shadow-sm border-b border-outline-variant/20 docked full-width top-0 z-50">
-<!-- Left: Context/Brand (Suppressed full logo, showing context) -->
-<div class="flex items-center gap-md">
-<h2 class="font-h2-title text-h2-title font-bold text-primary">Phòng đấu #4812</h2>
-<div class="h-4 w-[1px] bg-outline-variant/50"></div>
-<span class="font-label-caps text-label-caps text-on-surface-variant px-2 py-1 bg-surface-container rounded-sm">XẾP HẠNG</span>
+
+<div id="gt-game-root" class="flex-1 flex flex-col min-w-0 bg-background relative">
+
+    <header class="h-[64px] bg-white flex justify-between items-center px-6 border-b border-outline-variant/20 shrink-0 z-20">
+        <div class="flex items-center gap-4">
+            <h2 class="text-xl font-bold text-gt-primary line-clamp-1">${currentGame.roomName}</h2>
+            <span class="px-2 py-0.5 bg-surface-container text-on-surface-variant text-[10px] font-bold rounded uppercase">
+                    Bàn ${currentGame.boardSize}x${currentGame.boardSize}
+                </span>
+        </div>
+        <div class="flex items-center gap-4 text-on-surface-variant text-sm">
+            <span>Phòng: #${currentGame.id}</span>
+            <button class="hover:text-gt-primary p-2 rounded-full hover:bg-surface-container transition-colors" onclick="location.href='${pageContext.request.contextPath}/lobby'">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-row overflow-hidden">
+
+        <section class="flex-1 flex flex-col items-center justify-center p-8 min-w-0 relative">
+            <div class="mb-6 px-4 py-2 bg-white rounded-full shadow-sm border border-outline-variant/10 flex items-center gap-3">
+                <span id="gt-turn-dot" class="w-2.5 h-2.5 rounded-full bg-gt-primary animate-pulse"></span>
+                <span id="gt-turn-text" class="text-sm font-medium">Đang kết nối WebSocket...</span>
+            </div>
+
+            <div id="gt-goban-container" class="gt-goban relative aspect-square w-full max-w-[700px] max-h-full rounded-sm">
+                <div id="gt-grid-layer" class="absolute inset-[5%] pointer-events-none"></div>
+                <div id="gt-stones-layer" class="absolute inset-[5%] pointer-events-none"></div>
+                <div id="gt-interaction-layer" class="absolute inset-[5%] cursor-crosshair"></div>
+            </div>
+
+            <div class="w-full max-w-[700px] flex justify-between items-center mt-6">
+                <div class="flex gap-3">
+                    <button class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Đầu hàng</button>
+                    <button class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Bỏ lượt</button>
+                </div>
+                <div id="gt-coords" class="text-xs font-mono text-on-surface-variant opacity-40">Tọa độ: --</div>
+            </div>
+        </section>
+
+        <aside class="gt-info-sidebar bg-surface-container-lowest flex flex-col p-6 gap-6 overflow-y-auto">
+            <c:set var="isBlack" value="${sessionScope.user eq currentGame.blackPlayer.username}" />
+            <c:set var="opponent" value="${isBlack ? currentGame.whitePlayer : currentGame.blackPlayer}" />
+
+            <div class="bg-white rounded-xl p-4 border border-outline-variant/10 shadow-sm border-t-4 border-gt-wood-dark">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-gt-primary text-white flex items-center justify-center font-bold text-xl">
+                        ${opponent != null ? opponent.fullName.charAt(0) : '?'}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gt-primary truncate">${opponent != null ? opponent.fullName : "Chờ đối thủ..."}</h3>
+                        <div class="flex items-center gap-2 mt-1 text-xs text-on-surface-variant">
+                            <span class="w-2 h-2 rounded-full ${isBlack ? 'bg-white border' : 'bg-gt-stone-black'}"></span>
+                            ${isBlack ? "Quân Trắng" : "Quân Đen"}
+                            <span class="ml-auto opacity-60">${opponent != null ? opponent.rank : ""}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col items-center justify-center opacity-20 pointer-events-none">
+                <span class="material-symbols-outlined text-[64px]">grid_4x4</span>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 border border-outline-variant/10 shadow-sm border-t-4 border-gt-primary">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-full bg-gt-primary text-white flex items-center justify-center font-bold text-xl">
+                        ${sessionScope.displayName.charAt(0)}
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gt-primary truncate">${sessionScope.displayName} (Bạn)</h3>
+                        <div class="flex items-center gap-2 mt-1 text-xs text-on-surface-variant">
+                            <span class="w-2 h-2 rounded-full ${isBlack ? 'bg-gt-stone-black' : 'bg-white border'}"></span>
+                            ${isBlack ? "Quân Đen" : "Quân Trắng"}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
 </div>
-<!-- Right: Actions -->
-<div class="flex items-center gap-lg">
-<button class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-all scale-95 active:scale-90 flex items-center justify-center">
-<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
-</button>
-<button class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-all scale-95 active:scale-90 flex items-center justify-center">
-<span class="material-symbols-outlined" data-icon="settings">settings</span>
-</button>
-<div class="h-8 w-[1px] bg-outline-variant/50 mx-sm"></div>
-<button class="flex items-center gap-sm text-on-surface-variant hover:text-primary transition-colors">
-<span class="font-body-sm text-body-sm font-medium">Đăng xuất</span>
-<span class="material-symbols-outlined" style="font-size: 20px;">logout</span>
-</button>
-</div>
-</header>
-<!-- Game Workspace (12-column logic abstractly applied via flex) -->
-<main class="flex-1 flex flex-col lg:flex-row p-xl gap-xl overflow-hidden items-center justify-center">
-<!-- Left/Center Canvas: Go Board Area (7 cols equivalent) -->
-<section class="flex-[7] w-full max-w-4xl flex flex-col items-center justify-center">
-<!-- Feedback Area -->
-<div class="h-10 mb-md flex items-center justify-center w-full">
-<div class="px-md py-sm bg-surface-container-lowest border border-outline-variant/20 rounded-full shadow-sm flex items-center gap-sm opacity-80">
-<span class="w-3 h-3 rounded-full bg-primary inline-block"></span>
-<span class="font-body-sm text-body-sm text-on-surface font-medium">Lượt của Đen (Bạn)</span>
-</div>
-</div>
-<!-- The Goban (Wooden Board) -->
-<div class="relative w-full aspect-square bg-secondary-container rounded shadow-[0_10px_25px_-5px_rgba(26,42,58,0.08)] p-[3%] overflow-hidden border-t-[2px] border-l-[2px] border-secondary-fixed/50 border-b-[4px] border-r-[4px] border-[#5a462b]">
-<!-- Board Surface Texture (Subtle tint) -->
-<div class="absolute inset-0 bg-gradient-to-br from-transparent to-black/5 pointer-events-none"></div>
-<!-- 19x19 Grid Lines Wrapper -->
-<div class="absolute inset-[4%] border border-on-secondary-container/40">
-<!-- Horizontal Lines -->
-<div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
-<div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div><div class="w-full h-[1px] bg-on-secondary-container/40"></div>
-</div>
-<!-- Vertical Lines -->
-<div class="absolute inset-0 flex justify-between pointer-events-none">
-<div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div><div class="h-full w-[1px] bg-on-secondary-container/40"></div>
-</div>
-<!-- Hoshi (Star Points) -->
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[16.66%] top-[16.66%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[83.33%] top-[16.66%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[16.66%] top-[83.33%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[83.33%] top-[83.33%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[50%] top-[50%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[50%] top-[16.66%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[50%] top-[83.33%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[16.66%] top-[50%]"></div>
-<div class="absolute w-2 h-2 bg-on-secondary-container rounded-full -translate-x-1/2 -translate-y-1/2 left-[83.33%] top-[50%]"></div>
-<!-- Example Stones (Simulating a game in progress) -->
-<!-- Black Stone -->
-<div class="absolute w-[5.6%] h-[5.6%] rounded-full bg-[#111] shadow-[inset_-2px_-2px_4px_rgba(255,255,255,0.2),2px_2px_4px_rgba(0,0,0,0.5)] -translate-x-1/2 -translate-y-1/2 left-[16.66%] top-[16.66%]"></div>
-<!-- White Stone -->
-<div class="absolute w-[5.6%] h-[5.6%] rounded-full bg-[#fcfcfc] shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.1),1px_2px_3px_rgba(0,0,0,0.3)] -translate-x-1/2 -translate-y-1/2 left-[83.33%] top-[16.66%]"></div>
-<!-- More stones... -->
-<div class="absolute w-[5.6%] h-[5.6%] rounded-full bg-[#111] shadow-[inset_-2px_-2px_4px_rgba(255,255,255,0.2),2px_2px_4px_rgba(0,0,0,0.5)] -translate-x-1/2 -translate-y-1/2 left-[22.22%] top-[16.66%]"></div>
-<div class="absolute w-[5.6%] h-[5.6%] rounded-full bg-[#fcfcfc] shadow-[inset_-2px_-2px_6px_rgba(0,0,0,0.1),1px_2px_3px_rgba(0,0,0,0.3)] -translate-x-1/2 -translate-y-1/2 left-[27.77%] top-[22.22%]"></div>
-<!-- Last move indicator -->
-<div class="absolute w-[5.6%] h-[5.6%] rounded-full bg-[#111] shadow-[inset_-2px_-2px_4px_rgba(255,255,255,0.2),2px_2px_4px_rgba(0,0,0,0.5)] -translate-x-1/2 -translate-y-1/2 left-[50%] top-[50%] flex items-center justify-center">
-<div class="w-2 h-2 rounded-full border-2 border-surface-container-lowest"></div>
-</div>
-</div>
-</div>
-<!-- Bottom Controls (Primary Actions) -->
-<div class="w-full flex justify-between items-center mt-xl px-lg">
-<div class="flex gap-md">
-<button class="bg-surface-container-lowest text-on-surface border border-outline-variant/50 font-button-text text-button-text py-sm px-lg rounded-lg hover:bg-surface-container-low transition-colors flex items-center gap-sm">
-<span class="material-symbols-outlined" style="font-size: 18px;">block</span>
-                            Đầu hàng
-                        </button>
-<button class="bg-surface-container-lowest text-on-surface border border-outline-variant/50 font-button-text text-button-text py-sm px-lg rounded-lg hover:bg-surface-container-low transition-colors flex items-center gap-sm">
-<span class="material-symbols-outlined" style="font-size: 18px;">skip_next</span>
-                            Bỏ lượt
-                        </button>
-</div>
-<button class="bg-primary text-on-primary font-button-text text-button-text py-sm px-xl rounded-lg hover:bg-tertiary-container shadow-sm transition-all flex items-center gap-sm">
-<span class="material-symbols-outlined" style="font-size: 18px;">ads_click</span>
-                        Đặt quân cờ
-                    </button>
-</div>
-</section>
-<!-- Right Sidebar: Player Info & Tools (5 cols equivalent) -->
-<aside class="flex-[5] w-full max-w-sm h-full flex flex-col gap-lg border-l border-outline-variant/10 pl-xl">
-<!-- Opponent Panel (Top) -->
-<div class="bg-surface-container-lowest border-t-2 border-surface-tint/20 rounded-lg p-md shadow-sm border border-outline-variant/10">
-<div class="flex items-center gap-md mb-md">
-<div class="w-14 h-14 rounded-full overflow-hidden border-2 border-surface-container shadow-sm bg-surface-variant flex-shrink-0">
-<img alt="Avatar Opponent" class="w-full h-full object-cover" data-alt="A close-up portrait of an older, wise-looking Asian man with subtle wrinkles, conveying deep thought and concentration. The lighting is soft and natural, emphasizing a calm and focused mood suitable for a strategic mind. The background is a minimalist, slightly blurred out-of-focus wood texture to match a high-end Go game aesthetic. The overall color palette is warm and natural." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDzPjl8Dy8tYfGqbOv_WFh66BXyoWtQlADMggS5cZ4dkUGmuXpNaUQz5D0KM2aHLZsNBNmS167gIethFOpLQShGv9yYnO8j3r9MgWqYIByq_3stDIsSSQgd9TTuv-jilMBtZyqHbjYhUEj7gpbb4-IIXiInzGXWkzt1zbPxIoEkRsP-L1LnlbFyshvZ3vLBW-Vw9NJPYmJqo-Qh9nUD8A-ExuHe4pxH7J8sVz7CrsZdCewpjQ10NxRDWdGUDXG1zMZrcWM0GgAT4Yr2"/>
-</div>
-<div class="flex-1">
-<h3 class="font-h2-title text-[18px] font-semibold text-on-surface line-clamp-1">Thiên Nguyên Lão Sư</h3>
-<div class="flex items-center gap-sm mt-1">
-<span class="bg-surface-container-high text-primary font-label-caps text-[10px] px-2 py-0.5 rounded-full border border-outline-variant/20">5 DAN</span>
-<span class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1">
-<span class="w-3 h-3 rounded-full bg-surface-container-lowest border border-outline-variant/50 inline-block shadow-sm"></span>
-                                    Trắng
-                                </span>
-</div>
-</div>
-</div>
-<!-- Stats/Timer Grid -->
-<div class="grid grid-cols-2 gap-md bg-surface p-sm rounded-md border border-outline-variant/10">
-<div>
-<span class="font-label-caps text-[10px] text-on-surface-variant block mb-1">TÙ BINH</span>
-<span class="font-h2-title text-[20px] font-medium text-on-surface">3</span>
-</div>
-<div class="text-right flex flex-col items-end">
-<span class="font-label-caps text-[10px] text-on-surface-variant block mb-1">THỜI GIAN</span>
-<span class="font-h1-display text-[24px] font-medium text-surface-tint tracking-tight">08:42</span>
-<!-- Byo-yomi -->
-<div class="flex gap-xs mt-1">
-<div class="w-4 h-1.5 bg-surface-variant rounded-full"></div>
-<div class="w-4 h-1.5 bg-surface-variant rounded-full"></div>
-<div class="w-4 h-1.5 bg-surface-variant rounded-full"></div>
-</div>
-</div>
-</div>
-</div>
-<!-- Move History / Chat Area -->
-<div class="flex-1 bg-surface-container-lowest border-t-2 border-surface-tint/20 rounded-lg shadow-sm border border-outline-variant/10 flex flex-col overflow-hidden">
-<!-- Tab Header -->
-<div class="flex border-b border-outline-variant/10">
-<button class="flex-1 py-sm font-button-text text-button-text text-primary border-b-2 border-primary font-medium">Lịch sử nước đi</button>
-<button class="flex-1 py-sm font-button-text text-button-text text-on-surface-variant hover:bg-surface-container transition-colors">Chat</button>
-</div>
-<!-- List -->
-<div class="flex-1 overflow-y-auto bg-surface p-sm space-y-1">
-<div class="flex justify-between items-center py-2 px-md bg-surface-container-lowest rounded-sm border border-outline-variant/5">
-<span class="font-body-sm text-body-sm text-on-surface-variant w-8">1</span>
-<span class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface flex-1">
-<span class="w-3 h-3 rounded-full bg-[#111] inline-block shadow-sm"></span> Đen
-                            </span>
-<span class="font-label-caps text-label-caps text-on-surface font-semibold bg-surface px-2 py-1 rounded">Q4</span>
-</div>
-<div class="flex justify-between items-center py-2 px-md bg-surface rounded-sm">
-<span class="font-body-sm text-body-sm text-on-surface-variant w-8">2</span>
-<span class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface flex-1">
-<span class="w-3 h-3 rounded-full bg-surface-container-lowest border border-outline-variant/50 inline-block shadow-sm"></span> Trắng
-                            </span>
-<span class="font-label-caps text-label-caps text-on-surface font-semibold bg-surface-container px-2 py-1 rounded">D16</span>
-</div>
-<div class="flex justify-between items-center py-2 px-md bg-surface-container-lowest rounded-sm border border-outline-variant/5">
-<span class="font-body-sm text-body-sm text-on-surface-variant w-8">3</span>
-<span class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface flex-1">
-<span class="w-3 h-3 rounded-full bg-[#111] inline-block shadow-sm"></span> Đen
-                            </span>
-<span class="font-label-caps text-label-caps text-on-surface font-semibold bg-surface px-2 py-1 rounded">Q16</span>
-</div>
-<div class="flex justify-between items-center py-2 px-md bg-surface rounded-sm">
-<span class="font-body-sm text-body-sm text-on-surface-variant w-8">4</span>
-<span class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface flex-1">
-<span class="w-3 h-3 rounded-full bg-surface-container-lowest border border-outline-variant/50 inline-block shadow-sm"></span> Trắng
-                            </span>
-<span class="font-label-caps text-label-caps text-on-surface font-semibold bg-surface-container px-2 py-1 rounded">D4</span>
-</div>
-<!-- Current move highlight -->
-<div class="flex justify-between items-center py-2 px-md bg-primary/5 rounded-sm border border-primary/20">
-<span class="font-body-sm text-body-sm text-primary font-medium w-8">5</span>
-<span class="flex items-center gap-2 font-body-sm text-body-sm text-on-surface flex-1 font-medium">
-<span class="w-3 h-3 rounded-full bg-[#111] inline-block shadow-sm ring-2 ring-primary/30"></span> Đen
-                            </span>
-<span class="font-label-caps text-label-caps text-primary font-bold bg-surface px-2 py-1 rounded shadow-sm">K10</span>
-</div>
-</div>
-</div>
-<!-- Self Panel (Bottom - Active Turn) -->
-<div class="bg-surface-container-lowest border-t-2 border-primary rounded-lg p-md shadow-md border border-outline-variant/10 relative overflow-hidden">
-<!-- Active turn glow -->
-<div class="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none"></div>
-<div class="flex items-center gap-md mb-md relative z-10">
-<div class="w-14 h-14 rounded-full overflow-hidden border-2 border-primary shadow-sm bg-surface-variant flex-shrink-0">
-<img alt="Avatar Self" class="w-full h-full object-cover" data-alt="A portrait of a young, intense male Go player staring thoughtfully off-camera, wearing a minimalist black turtleneck. The lighting is dramatic and directional, creating deep shadows that emphasize focus and tactical calculation. The background is pure, neutral light grey to maintain the minimalist, clean UI aesthetic. The overall mood is modern, serious, and competitive." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAalLOgi2PnUOFgnPnNhvhd9NhwIBqV2mLDNORyrqBJ5Hrxx7-M9BldP7PezEc2RtcFUOJ5OiMepLawfZkalmyu1F9mpK2IiVTxrTUoXvfd6uvVR_QgB96f4WDe-0DBn9dsvBVRx-E35bnimK4TiKC1x9JXgXQHo7u68trjD8NhU3e9-9KGNLyFteTHJ7sGIPEt4diYuiWFlPVGGCmIvhWA3bQo0HmYzqBLyQ9xu-e0OAPockLY1MiHARuyAC1HmHaZvB8lt0ICEiK_"/>
-</div>
-<div class="flex-1">
-<h3 class="font-h2-title text-[18px] font-bold text-on-surface line-clamp-1">Kỳ Thủ Hiện Tại</h3>
-<div class="flex items-center gap-sm mt-1">
-<span class="bg-primary/10 text-primary font-label-caps text-[10px] px-2 py-0.5 rounded-full border border-primary/20 font-bold">4 DAN</span>
-<span class="font-body-sm text-body-sm text-on-surface font-medium flex items-center gap-1">
-<span class="w-3 h-3 rounded-full bg-[#111] inline-block shadow-sm"></span>
-                                    Đen
-                                </span>
-</div>
-</div>
-</div>
-<!-- Stats/Timer Grid -->
-<div class="grid grid-cols-2 gap-md bg-primary/5 p-sm rounded-md border border-primary/10 relative z-10">
-<div>
-<span class="font-label-caps text-[10px] text-primary block mb-1">TÙ BINH</span>
-<span class="font-h2-title text-[20px] font-bold text-primary">1</span>
-</div>
-<div class="text-right flex flex-col items-end">
-<span class="font-label-caps text-[10px] text-primary block mb-1 font-bold">THỜI GIAN CỦA BẠN</span>
-<span class="font-h1-display text-[24px] font-bold text-primary tracking-tight">12:15</span>
-<!-- Byo-yomi Active -->
-<div class="flex gap-xs mt-1">
-<div class="w-4 h-1.5 bg-primary rounded-full shadow-[0_0_8px_rgba(4,21,37,0.4)]"></div>
-<div class="w-4 h-1.5 bg-primary/30 rounded-full"></div>
-<div class="w-4 h-1.5 bg-primary/30 rounded-full"></div>
-</div>
-</div>
-</div>
-</div>
-</aside>
-</main>
-</div>
-</body></html>
+
+<script>
+    const config = {
+        id: "${currentGame.id}",
+        size: ${currentGame.boardSize},
+        color: "${isBlack ? 'black' : 'white'}",
+        spacing: 100 / (${currentGame.boardSize} - 1)
+    };
+
+    const ws = new WebSocket("ws://" + window.location.host + "${pageContext.request.contextPath}/ws/game/" + config.id);
+
+    function renderGrid() {
+        const layer = document.getElementById('gt-grid-layer');
+        for (let i = 0; i < config.size; i++) {
+            const pos = i * config.spacing;
+            // Ngang
+            const h = document.createElement('div');
+            h.className = "gt-grid-line w-full h-[1px]";
+            h.style.top = pos + "%";
+            layer.appendChild(h);
+            // Dọc
+            const v = document.createElement('div');
+            v.className = "gt-grid-line h-full w-[1px]";
+            v.style.left = pos + "%";
+            layer.appendChild(v);
+        }
+        if (config.size === 19) {
+            [3, 9, 15].forEach(r => [3, 9, 15].forEach(c => {
+                const s = document.createElement('div');
+                s.className = "gt-hoshi";
+                s.style.top = (r * config.spacing) + "%";
+                s.style.left = (c * config.spacing) + "%";
+                layer.appendChild(s);
+            }));
+        }
+    }
+
+    function addStone(x, y, color, manual = true) {
+        const layer = document.getElementById('gt-stones-layer');
+        const stone = document.createElement('div');
+        const size = config.size === 19 ? 5.2 : (config.size === 13 ? 7.5 : 10.5);
+
+        stone.className = "gt-stone shadow-lg";
+        stone.style.width = size + "%";
+        stone.style.height = size + "%";
+        stone.style.left = (x * config.spacing) + "%";
+        stone.style.top = (y * config.spacing) + "%";
+
+        if (color === 'black') {
+            stone.style.background = "radial-gradient(circle at 35% 35%, #444, #111)";
+        } else {
+            stone.style.background = "radial-gradient(circle at 35% 35%, #fff, #ddd)";
+            stone.style.border = "1px solid rgba(0,0,0,0.15)";
+        }
+
+        layer.appendChild(stone);
+        if (manual) ws.send(JSON.stringify({ x, y, color }));
+    }
+
+    const inter = document.getElementById('gt-interaction-layer');
+    inter.addEventListener('click', (e) => {
+        if (currentTurn !== config.color) {
+            alert("Chưa đến lượt của bạn!");
+            return;
+        }
+        const r = inter.getBoundingClientRect();
+        const x = Math.round(((e.clientX - r.left) / r.width) * (config.size - 1));
+        const y = Math.round(((e.clientY - r.top) / r.height) * (config.size - 1));
+        if (x >= 0 && x < config.size && y >= 0 && y < config.size) {
+            addStone(x, y, config.color, true);
+        }
+        currentTurn = (config.color === 'black') ? 'white' : 'black';
+        updateTurnUI();
+    });
+
+    let currentTurn = "black";
+
+    ws.onmessage = (e) => {
+        const m = JSON.parse(e.data);
+        addStone(m.x, m.y, m.color, false);
+
+        currentTurn = (m.color === 'black') ? 'white' : 'black';
+        updateTurnUI();
+    };
+
+    function updateTurnUI() {
+        const dot = document.getElementById('gt-turn-dot');
+        const txt = document.getElementById('gt-turn-text');
+
+        if (currentTurn === config.color) {
+            txt.innerText = "Lượt của bạn (" + (config.color === 'black' ? 'Đen' : 'Trắng') + ")";
+            dot.className = "w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse";
+        } else {
+            txt.innerText = "Đang chờ đối thủ...";
+            dot.className = "w-2.5 h-2.5 rounded-full bg-gt-primary opacity-50";
+        }
+    }
+
+    ws.onopen = () => {
+        document.getElementById('gt-turn-text').innerText = "Trận đấu đang diễn ra";
+        document.getElementById('gt-turn-dot').classList.remove('animate-pulse');
+    };
+
+    window.onload = renderGrid;
+</script>
+</body>
+</html>

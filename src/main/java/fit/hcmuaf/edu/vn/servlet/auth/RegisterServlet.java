@@ -4,6 +4,8 @@ import fit.hcmuaf.edu.vn.dao.UserDAO;
 import fit.hcmuaf.edu.vn.model.User;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;
+import org.mindrot.jbcrypt.BCrypt;
+
 import java.io.IOException;
 
 public class RegisterServlet extends HttpServlet {
@@ -46,14 +48,14 @@ public class RegisterServlet extends HttpServlet {
         newUser.setFullName(fullName);
         newUser.setEmail(email);
         newUser.setUsername(username);
-        newUser.setPassword(password); // Nên mã hóa mật khẩu ở đây
+        String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
+        newUser.setPassword(hashedPassword);
         newUser.setRole("user");
         newUser.setRank("18 kyu");
         newUser.setElo(1200);
         
         try {
             userDAO.save(newUser);
-            // 5. Điều hướng về trang login với thông báo thành công
             resp.sendRedirect(req.getContextPath() + "/login?registered=true");
         } catch (Exception e) {
             req.setAttribute("errorMsg", "Lỗi hệ thống: " + e.getMessage());

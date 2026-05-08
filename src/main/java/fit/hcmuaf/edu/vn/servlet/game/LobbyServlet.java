@@ -1,8 +1,11 @@
 package fit.hcmuaf.edu.vn.servlet.game;
 
+import fit.hcmuaf.edu.vn.dao.RoomDAO;
+import fit.hcmuaf.edu.vn.model.GameRoom;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.*;
 import java.io.IOException;
+import java.util.List;
 
 public class LobbyServlet extends HttpServlet {
     @Override
@@ -13,6 +16,11 @@ public class LobbyServlet extends HttpServlet {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
+        
+        RoomDAO roomDAO = new RoomDAO();
+        List<GameRoom> availableRooms = roomDAO.findAvailableRooms();
+
+        req.setAttribute("rooms", availableRooms);
         req.getRequestDispatcher("/views/lobby/lobby.jsp").forward(req, resp);
     }
 }
