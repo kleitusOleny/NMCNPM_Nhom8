@@ -10,6 +10,7 @@
         <class>fit.hcmuaf.edu.vn.model.User</class>
         <class>fit.hcmuaf.edu.vn.model.GameRoom</class>
         <class>fit.hcmuaf.edu.vn.model.GameMove</class>
+        <class>fit.hcmuaf.edu.vn.model.AuditLog</class>
         <properties>
             <property name="jakarta.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver"/>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:mysql://localhost:3306/go_chess"/>

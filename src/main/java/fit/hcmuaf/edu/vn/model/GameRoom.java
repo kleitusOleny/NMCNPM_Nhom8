@@ -18,6 +18,8 @@ public class GameRoom implements Serializable {
     private int boardSize;   // 9, 13, hoặc 19
     private String timeControl; // Ví dụ: "30m + 3x30s"
     private String status;   // WAITING, PLAYING, FINISHED
+    private String result;   // Ví dụ: "B+Resign", "W+5.5", "Đen thắng"
+    private String duration; // Ví dụ: "45 phút", "1h 20m"
     
     @ManyToOne
     @JoinColumn(name = "black_player_id")
@@ -30,8 +32,20 @@ public class GameRoom implements Serializable {
     @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @OrderBy("moveOrder ASC")
     private java.util.List<GameMove> moves;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private java.util.Date createdAt = new java.util.Date();
+
     // Constructors, Getters, Setters...
     public GameRoom() { this.status = "WAITING"; }
+
+    public java.util.Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(java.util.Date createdAt) {
+        this.createdAt = createdAt;
+    }
     
     public Long getId() {
         return id;
@@ -103,5 +117,21 @@ public class GameRoom implements Serializable {
     
     public void setMoves(List<GameMove> moves) {
         this.moves = moves;
+    }
+
+    public String getResult() {
+        return result;
+    }
+
+    public void setResult(String result) {
+        this.result = result;
+    }
+
+    public String getDuration() {
+        return duration;
+    }
+
+    public void setDuration(String duration) {
+        this.duration = duration;
     }
 }

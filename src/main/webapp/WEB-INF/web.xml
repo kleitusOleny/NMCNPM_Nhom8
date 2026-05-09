@@ -123,14 +123,6 @@
         <url-pattern>/admin/users</url-pattern>
     </servlet-mapping>
 
-    <servlet>
-        <servlet-name>AdminGamesServlet</servlet-name>
-        <servlet-class>fit.hcmuaf.edu.vn.servlet.admin.AdminGamesServlet</servlet-class>
-    </servlet>
-    <servlet-mapping>
-        <servlet-name>AdminGamesServlet</servlet-name>
-        <url-pattern>/admin/games</url-pattern>
-    </servlet-mapping>
 
     <!-- Session config: 30 minutes -->
     <session-config>
