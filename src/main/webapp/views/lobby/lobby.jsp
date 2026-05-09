@@ -197,11 +197,18 @@
             <p class="font-body-sm text-body-sm text-on-surface-variant">Tìm kiếm đối thủ hoặc tạo phòng đấu mới.</p>
         </div>
         <div class="flex items-center gap-md w-full sm:w-auto">
-            <div class="relative w-full sm:w-64">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-                <input class="w-full pl-10 pr-4 py-2 bg-surface border-b border-outline-variant focus:border-primary focus:ring-0 transition-colors font-body-sm text-body-sm"
-                       placeholder="Tìm kiếm phòng..." type="text"/>
-            </div>
+            <form action="${pageContext.request.contextPath}/lobby" method="GET" class="relative w-full sm:w-64">
+                <input type="hidden" name="type" value="${currentType != null ? currentType : 'all'}">
+
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                    search
+                </span>
+                <input name="search"
+                       value="${currentSearch}"
+                       class="w-full pl-10 pr-4 py-2 bg-surface border-b border-outline-variant focus:border-primary focus:ring-0 transition-colors font-body-sm text-body-sm"
+                       placeholder="Tìm kiếm phòng..."
+                       type="text"/>
+            </form>
             <button class="hidden sm:flex items-center gap-xs px-4 py-2 bg-primary text-on-primary rounded-lg font-button-text text-button-text hover:bg-tertiary transition-colors shadow-sm whitespace-nowrap"
                     onclick="window.location.href='${pageContext.request.contextPath}/create-room'">
                 <span class="material-symbols-outlined text-[18px]">add</span>
@@ -211,18 +218,22 @@
     </div>
     <!-- Filters -->
     <div class="px-xl py-md flex flex-wrap gap-sm">
-        <button class="px-4 py-1.5 rounded-full bg-secondary-container text-on-secondary-container font-label-caps text-label-caps border border-transparent">
+        <a href="${pageContext.request.contextPath}/lobby?type=all"
+           class="px-4 py-1.5 rounded-full ${currentType == 'all' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface text-on-surface-variant border border-outline-variant'} font-label-caps text-label-caps">
             Tất cả
-        </button>
-        <button class="px-4 py-1.5 rounded-full bg-surface text-on-surface-variant font-label-caps text-label-caps border border-outline-variant hover:bg-surface-container transition-colors">
+        </a>
+        <a href="${pageContext.request.contextPath}/lobby?type=standard"
+           class="px-4 py-1.5 rounded-full ${currentType == 'standard' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface text-on-surface-variant border border-outline-variant'} font-label-caps text-label-caps">
             Tiêu chuẩn
-        </button>
-        <button class="px-4 py-1.5 rounded-full bg-surface text-on-surface-variant font-label-caps text-label-caps border border-outline-variant hover:bg-surface-container transition-colors">
+        </a>
+        <a href="${pageContext.request.contextPath}/lobby?type=blitz"
+           class="px-4 py-1.5 rounded-full ${currentType == 'blitz' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface text-on-surface-variant border border-outline-variant'} font-label-caps text-label-caps">
             Chớp nhoáng (Blitz)
-        </button>
-        <button class="px-4 py-1.5 rounded-full bg-surface text-on-surface-variant font-label-caps text-label-caps border border-outline-variant hover:bg-surface-container transition-colors">
+        </a>
+        <a href="${pageContext.request.contextPath}/lobby?type=playing"
+           class="px-4 py-1.5 rounded-full ${currentType == 'playing' ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface text-on-surface-variant border border-outline-variant'} font-label-caps text-label-caps">
             Đang đấu
-        </button>
+        </a>
     </div>
     <!-- Room Grid (Bento style approach for varied card sizes) -->
     <div class="flex-1 overflow-y-auto px-xl pb-xl">
