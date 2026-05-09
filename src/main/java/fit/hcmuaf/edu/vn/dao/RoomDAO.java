@@ -216,4 +216,21 @@ public class RoomDAO {
         if (filters.get("date") != null) query.setParameter("date", filters.get("date"));
         if (filters.get("player") != null) query.setParameter("player", "%" + filters.get("player") + "%");
     }
+    
+    public void finishGame(Long roomId, String result) {
+        EntityManager em = emf.createEntityManager();
+        try {
+            em.getTransaction().begin();
+            GameRoom room = em.find(GameRoom.class, roomId);
+            if (room != null) {
+                room.setStatus("FINISHED");
+                room.setResult(result);
+                // Bạn có thể tính toán duration ở đây nếu cần
+                em.merge(room);
+            }
+            em.getTransaction().commit();
+        } finally {
+            em.close();
+        }
+    }
 }

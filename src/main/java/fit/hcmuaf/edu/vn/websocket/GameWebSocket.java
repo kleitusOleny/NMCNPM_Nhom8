@@ -8,46 +8,93 @@ import fit.hcmuaf.edu.vn.util.GoLogic;
 import jakarta.websocket.*;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
+
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @ServerEndpoint("/ws/game/{roomId}")
 public class GameWebSocket {
+    private static Map<Long, Integer> consecutivePasses = new ConcurrentHashMap<>();
     private static Map<Long, Set<Session>> roomSessions = new ConcurrentHashMap<>();
+    private static Map<Long, Set<String>> deadStonesMap = new ConcurrentHashMap<>();
+    private static Map<Long, Set<String>> confirmationMap = new ConcurrentHashMap<>();
+    private static Map<Long, RoomTimer> gameTimers = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
     
-    // DTO cho tọa độ quân cờ
-    public static class StoneCoords {
+    public static class Stone {
         public int x, y;
-        public StoneCoords(int x, int y) { this.x = x; this.y = y; }
+        public Stone(int x, int y) {
+            this.x = x;
+            this.y = y;
+        }
     }
     
-    // DTO cho tin nhắn gửi từ client
-    private static class MoveMessage {
-        int x, y;
-        String color;
-    }
-    
-    // DTO phản hồi đặc biệt (REMOVE quân bị bắt)
     public static class GameResponse {
         String type;
         Object data;
+        String nextTurn;
+        
         public GameResponse(String type, Object data) {
             this.type = type;
             this.data = data;
+        }
+        
+        public GameResponse(String type, Object data, String nextTurn) {
+            this.type = type;
+            this.data = data;
+            this.nextTurn = nextTurn;
+        }
+    }
+    
+    public static class PlayerTimer {
+        public long mainTimeMillis;
+        public int periods;
+        public long periodTimeMillis;
+        
+        public PlayerTimer(int mainMin, int p, int pSec) {
+            this.mainTimeMillis = mainMin * 60 * 1000L;
+            this.periods = p;
+            this.periodTimeMillis = pSec * 1000L;
+        }
+    }
+    
+    public static class RoomTimer {
+        public PlayerTimer black;
+        public PlayerTimer white;
+        public long lastTurnStartTime;
+        public String currentTurn;
+        
+        public RoomTimer(String timeControl) {
+            try {
+                String[] parts = timeControl.split("\\+");
+                int mainMin = Integer.parseInt(parts[0].trim().replace("m", ""));
+                String[] byo = parts[1].trim().split("x");
+                int p = Integer.parseInt(byo[0]);
+                int pSec = Integer.parseInt(byo[1].replace("s", ""));
+                
+                this.black = new PlayerTimer(mainMin, p, pSec);
+                this.white = new PlayerTimer(mainMin, p, pSec);
+                this.lastTurnStartTime = System.currentTimeMillis();
+                this.currentTurn = "black";
+            } catch (Exception e) {
+                this.black = new PlayerTimer(30, 3, 30);
+                this.white = new PlayerTimer(30, 3, 30);
+                this.lastTurnStartTime = System.currentTimeMillis();
+                this.currentTurn = "black";
+            }
         }
     }
     
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") Long roomId) {
         roomSessions.computeIfAbsent(roomId, k -> Collections.synchronizedSet(new HashSet<>())).add(session);
+        RoomDAO dao = new RoomDAO();
+        GameRoom room = dao.findById(roomId);
         
-        // PHỤC HỒI LỊCH SỬ: Gửi toàn bộ nước đi cũ cho người mới vào
-        RoomDAO roomDAO = new RoomDAO();
-        GameRoom room = roomDAO.findById(roomId);
         if (room != null && room.getMoves() != null) {
-            for (GameMove m : room.getMoves()) {
+            List<GameMove> moves = room.getMoves();
+            for (GameMove m : moves) {
                 Map<String, Object> historyMove = new HashMap<>();
                 historyMove.put("x", m.getX());
                 historyMove.put("y", m.getY());
@@ -55,7 +102,16 @@ public class GameWebSocket {
                 historyMove.put("isHistory", true);
                 try {
                     session.getBasicRemote().sendText(gson.toJson(historyMove));
-                } catch (IOException e) { e.printStackTrace(); }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            
+            String startTurn = (moves.size() % 2 == 0) ? "black" : "white";
+            try {
+                session.getBasicRemote().sendText(gson.toJson(new GameResponse("SYNC_TURN", null, startTurn)));
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -63,66 +119,230 @@ public class GameWebSocket {
     @OnMessage
     public void onMessage(String message, Session session, @PathParam("roomId") Long roomId) {
         try {
-            MoveMessage moveData = gson.fromJson(message, MoveMessage.class);
-            RoomDAO roomDAO = new RoomDAO();
-            GameRoom room = roomDAO.findById(roomId);
+            Map<String, Object> data = gson.fromJson(message, Map.class);
+            String type = (String) data.get("type");
+            RoomDAO dao = new RoomDAO();
+            GameRoom room = dao.findById(roomId);
+            
             if (room == null) return;
             
-            // 1. Xây dựng bàn cờ giả lập để tính toán logic bắt quân
-            int size = room.getBoardSize();
-            int[][] boardArray = new int[size][size];
-            for (GameMove m : room.getMoves()) {
-                boardArray[m.getX()][m.getY()] = m.getColor().equals("black") ? 1 : 2;
+            RoomTimer timer = gameTimers.computeIfAbsent(roomId, k -> new RoomTimer(room.getTimeControl()));
+            
+            if (!"TOGGLE_DEAD".equals(type) && !"CONFIRM_SCORE".equals(type)) {
+                long now = System.currentTimeMillis();
+                long elapsed = now - timer.lastTurnStartTime;
+                PlayerTimer currentPlayerTimer = timer.currentTurn.equals("black") ? timer.black : timer.white;
+                
+                if (currentPlayerTimer.mainTimeMillis > 0) {
+                    currentPlayerTimer.mainTimeMillis -= elapsed;
+                } else {
+                    if (elapsed > currentPlayerTimer.periodTimeMillis) {
+                        currentPlayerTimer.periods -= (int) (elapsed / currentPlayerTimer.periodTimeMillis);
+                    }
+                }
+                
+                if (currentPlayerTimer.periods < 0) {
+                    String res = timer.currentTurn.equals("black") ? "Trắng thắng (Đen hết giờ)" : "Đen thắng (Trắng hết giờ)";
+                    dao.finishGame(roomId, res);
+                    broadcast(roomId, gson.toJson(new GameResponse("GAME_OVER", res)), null);
+                    gameTimers.remove(roomId);
+                    return;
+                }
+                timer.lastTurnStartTime = now;
             }
             
-            int myColorInt = moveData.color.equals("black") ? 1 : 2;
-            int opponentColorInt = myColorInt == 1 ? 2 : 1;
-            boardArray[moveData.x][moveData.y] = myColorInt;
+            Map<String, Object> timeData = new HashMap<>();
+            timeData.put("blackMain", timer.black.mainTimeMillis);
+            timeData.put("blackPeriods", timer.black.periods);
+            timeData.put("whiteMain", timer.white.mainTimeMillis);
+            timeData.put("whitePeriods", timer.white.periods);
             
-            // 2. Kiểm tra bắt quân (Luật cờ vây)
+            if ("RESIGN".equals(type)) {
+                String color = (String) data.get("color");
+                String res = color.equals("black") ? "Trắng thắng (Đen đầu hàng)" : "Đen thắng (Trắng đầu hàng)";
+                dao.finishGame(roomId, res);
+                broadcast(roomId, gson.toJson(new GameResponse("GAME_OVER", res)), null);
+                gameTimers.remove(roomId);
+                return;
+            }
+            
+            if ("PASS".equals(type)) {
+                timer.currentTurn = timer.currentTurn.equals("black") ? "white" : "black";
+                int passes = consecutivePasses.getOrDefault(roomId, 0) + 1;
+                consecutivePasses.put(roomId, passes);
+                
+                if (passes >= 2) {
+                    broadcast(roomId, gson.toJson(new GameResponse("START_DEAD_SELECTION", null)), null);
+                } else {
+                    Map<String, Object> res = new HashMap<>();
+                    res.put("type", "PASS");
+                    res.put("nextTurn", timer.currentTurn);
+                    res.put("timeData", timeData);
+                    broadcast(roomId, gson.toJson(res), null);
+                }
+                return;
+            }
+            
+            if ("TOGGLE_DEAD".equals(type)) {
+                int x = ((Double) data.get("x")).intValue();
+                int y = ((Double) data.get("y")).intValue();
+                String posKey = x + "-" + y;
+                
+                Set<String> deadStones = deadStonesMap.computeIfAbsent(roomId, k -> Collections.synchronizedSet(new HashSet<>()));
+                if (!deadStones.remove(posKey)) {
+                    deadStones.add(posKey);
+                }
+                broadcast(roomId, gson.toJson(new GameResponse("UPDATE_DEAD_STONES", deadStones)), null);
+                return;
+            }
+            
+            if ("CONFIRM_SCORE".equals(type)) {
+                Set<String> confirms = confirmationMap.computeIfAbsent(roomId, k -> Collections.synchronizedSet(new HashSet<>()));
+                confirms.add(session.getId());
+                
+                if (confirms.size() >= 2) {
+                    calculateAndFinish(roomId, room, dao);
+                } else {
+                    broadcast(roomId, gson.toJson(new GameResponse("WAITING_CONFIRM", "Đang chờ đối thủ xác nhận...")), null);
+                }
+                return;
+            }
+            
+            consecutivePasses.put(roomId, 0);
+            int x = ((Double) data.get("x")).intValue();
+            int y = ((Double) data.get("y")).intValue();
+            String color = (String) data.get("color");
+            int size = room.getBoardSize();
+            
+            int[][] currentBoard = new int[size][size];
+            int[][] previousBoard = new int[size][size];
+            List<GameMove> moves = room.getMoves();
+            
+            if (moves != null) {
+                for (int i = 0; i < moves.size(); i++) {
+                    GameMove m = moves.get(i);
+                    int stoneColorInt = m.getColor().equals("black") ? 1 : 2;
+                    if (i < moves.size() - 1) {
+                        previousBoard[m.getX()][m.getY()] = stoneColorInt;
+                    }
+                    currentBoard[m.getX()][m.getY()] = stoneColorInt;
+                }
+            }
+            
+            if (currentBoard[x][y] != 0) {
+                return;
+            }
+            
             GoLogic logic = new GoLogic(size);
-            logic.setBoard(boardArray);
-            List<StoneCoords> capturedStones = new ArrayList<>();
-            int[][] neighbors = {{0,1}, {0,-1}, {1,0}, {-1,0}};
+            logic.setBoard(currentBoard);
+            
+            int myColorInt = color.equals("black") ? 1 : 2;
+            int opponentColorInt = (myColorInt == 1) ? 2 : 1;
+            
+            if (logic.isSuicide(x, y, myColorInt)) {
+                session.getBasicRemote().sendText(gson.toJson(new GameResponse("INVALID", "Nước đi tự sát!")));
+                return;
+            }
+            
+            int[][] nextBoard = new int[size][size];
+            for (int i = 0; i < size; i++) {
+                nextBoard[i] = currentBoard[i].clone();
+            }
+            nextBoard[x][y] = myColorInt;
+            
+            List<Stone> toRemove = new ArrayList<>();
+            int[][] neighbors = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
             
             for (int[] n : neighbors) {
-                int nx = moveData.x + n[0], ny = moveData.y + n[1];
-                if (nx >= 0 && nx < size && ny >= 0 && ny < size && boardArray[nx][ny] == opponentColorInt) {
+                int nx = x + n[0];
+                int ny = y + n[1];
+                if (nx >= 0 && nx < size && ny >= 0 && ny < size && nextBoard[nx][ny] == opponentColorInt) {
+                    logic.setBoard(nextBoard);
                     List<int[]> group = logic.findGroup(nx, ny, opponentColorInt);
                     if (logic.countLiberties(group) == 0) {
-                        for (int[] stone : group) {
-                            capturedStones.add(new StoneCoords(stone[0], stone[1]));
-                            roomDAO.removeMoveAt(roomId, stone[0], stone[1]); // Xóa khỏi DB
+                        for (int[] stonePos : group) {
+                            toRemove.add(new Stone(stonePos[0], stonePos[1]));
+                            nextBoard[stonePos[0]][stonePos[1]] = 0;
                         }
                     }
                 }
             }
             
-            // 3. Thông báo xóa quân nếu có
-            if (!capturedStones.isEmpty()) {
-                broadcast(roomId, gson.toJson(new GameResponse("REMOVE", capturedStones)), null);
+            if (moves != null && moves.size() > 1 && logic.isSameState(nextBoard, previousBoard)) {
+                session.getBasicRemote().sendText(gson.toJson(new GameResponse("INVALID", "Vi phạm luật Kiếp (Ko)!")));
+                return;
             }
             
-            // 4. Lưu nước đi mới và gửi cho đối thủ
+            for (Stone s : toRemove) {
+                dao.removeMoveAt(roomId, s.x, s.y);
+            }
+            
+            if (!toRemove.isEmpty()) {
+                broadcast(roomId, gson.toJson(new GameResponse("REMOVE", toRemove)), null);
+            }
+            
             GameMove newMove = new GameMove();
             newMove.setRoom(room);
-            newMove.setX(moveData.x); newMove.setY(moveData.y);
-            newMove.setColor(moveData.color);
-            newMove.setMoveOrder(room.getMoves().size() + 1);
-            roomDAO.saveMove(newMove);
+            newMove.setX(x);
+            newMove.setY(y);
+            newMove.setColor(color);
+            newMove.setMoveOrder(moves != null ? moves.size() + 1 : 1);
+            dao.saveMove(newMove);
             
-            broadcast(roomId, message, session); // Chỉ gửi cho đối thủ để tránh lặp lượt
+            timer.currentTurn = timer.currentTurn.equals("black") ? "white" : "black";
             
-        } catch (Exception e) { e.printStackTrace(); }
+            Map<String, Object> moveResponse = new HashMap<>(data);
+            moveResponse.put("nextTurn", timer.currentTurn);
+            moveResponse.put("timeData", timeData);
+            broadcast(roomId, gson.toJson(moveResponse), null);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void calculateAndFinish(Long roomId, GameRoom room, RoomDAO dao) {
+        GoLogic logic = new GoLogic(room.getBoardSize());
+        int[][] finalBoard = new int[room.getBoardSize()][room.getBoardSize()];
+        Set<String> deadStones = deadStonesMap.getOrDefault(roomId, new HashSet<>());
+        
+        if (room.getMoves() != null) {
+            for (GameMove m : room.getMoves()) {
+                if (!deadStones.contains(m.getX() + "-" + m.getY())) {
+                    finalBoard[m.getX()][m.getY()] = m.getColor().equals("black") ? 1 : 2;
+                }
+            }
+        }
+        
+        logic.setBoard(finalBoard);
+        Map<String, Double> scores = logic.calculateFinalScore(6.5);
+        
+        String result;
+        if (scores.get("black") > scores.get("white")) {
+            result = "Đen thắng " + (scores.get("black") - scores.get("white"));
+        } else {
+            result = "Trắng thắng " + (scores.get("white") - scores.get("black"));
+        }
+        
+        dao.finishGame(roomId, result);
+        broadcast(roomId, gson.toJson(new GameResponse("FINAL_SCORE", scores)), null);
+        
+        gameTimers.remove(roomId);
+        consecutivePasses.remove(roomId);
+        deadStonesMap.remove(roomId);
+        confirmationMap.remove(roomId);
     }
     
     private void broadcast(Long roomId, String message, Session sender) {
         Set<Session> sessions = roomSessions.get(roomId);
         if (sessions != null) {
             for (Session s : sessions) {
-                // Nếu sender khác null, chỉ gửi cho đối thủ. Nếu null, gửi cho tất cả
                 if (s.isOpen() && (sender == null || !s.getId().equals(sender.getId()))) {
-                    try { s.getBasicRemote().sendText(message); } catch (IOException e) { e.printStackTrace(); }
+                    try {
+                        s.getBasicRemote().sendText(message);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }
@@ -131,6 +351,8 @@ public class GameWebSocket {
     @OnClose
     public void onClose(Session session, @PathParam("roomId") Long roomId) {
         Set<Session> sessions = roomSessions.get(roomId);
-        if (sessions != null) sessions.remove(session);
+        if (sessions != null) {
+            sessions.remove(session);
+        }
     }
 }

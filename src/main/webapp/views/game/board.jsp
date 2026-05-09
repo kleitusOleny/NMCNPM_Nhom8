@@ -169,95 +169,103 @@
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 10;
         }
+
+        .gt-stone.is-dead {
+            opacity: 0.3;
+        }
+        .gt-stone.is-dead::after {
+            content: '×';
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff0000;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        /* Modal tính điểm */
+        #scoring-modal { backdrop-filter: blur(8px); display: none; }
+        #scoring-modal.active { display: flex; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
-<body class="bg-background font-body-main flex h-screen overflow-hidden antialiased">
-
+<body class="bg-surface font-body-main flex h-screen overflow-hidden antialiased">
 <jsp:include page="/views/layout/user-sidebar.jsp" />
-
-<div id="gt-game-root" class="flex-1 flex flex-col min-w-0 bg-background relative">
-
-    <header class="h-[64px] bg-white flex justify-between items-center px-6 border-b border-outline-variant/20 shrink-0 z-20">
+<div id="gt-game-root" class="flex-1 flex flex-col bg-background relative">
+    <header class="h-[64px] bg-white flex justify-between items-center px-6 border-b border-outline-variant/20 z-20">
         <div class="flex items-center gap-4">
-            <h2 class="text-xl font-bold text-gt-primary line-clamp-1">${currentGame.roomName}</h2>
-            <span class="px-2 py-0.5 bg-surface-container text-on-surface-variant text-[10px] font-bold rounded uppercase">
-                    Bàn ${currentGame.boardSize}x${currentGame.boardSize}
-                </span>
+            <h2 class="text-xl font-bold text-primary">${currentGame.roomName}</h2>
+            <span class="px-2 py-0.5 bg-slate-100 text-[10px] font-bold rounded uppercase">Bàn ${currentGame.boardSize}x${currentGame.boardSize}</span>
         </div>
-        <div class="flex items-center gap-4 text-on-surface-variant text-sm">
-            <span>Phòng: #${currentGame.id}</span>
-            <button class="hover:text-gt-primary p-2 rounded-full hover:bg-surface-container transition-colors" onclick="location.href='${pageContext.request.contextPath}/lobby'">
-                <span class="material-symbols-outlined">close</span>
-            </button>
-        </div>
+        <button onclick="location.href='${pageContext.request.contextPath}/lobby'" class="text-slate-500 font-bold hover:text-red-500 transition-colors">THOÁT</button>
     </header>
 
     <main class="flex-1 flex flex-row overflow-hidden">
-
-        <section class="flex-1 flex flex-col items-center justify-center p-8 min-w-0 relative">
-            <div class="mb-6 px-4 py-2 bg-white rounded-full shadow-sm border border-outline-variant/10 flex items-center gap-3">
-                <span id="gt-turn-dot" class="w-2.5 h-2.5 rounded-full bg-gt-primary animate-pulse"></span>
-                <span id="gt-turn-text" class="text-sm font-medium">Đang kết nối WebSocket...</span>
+        <section class="flex-1 flex flex-col items-center justify-center p-8 relative">
+            <div class="mb-6 px-4 py-2 bg-white rounded-full shadow-sm border flex items-center gap-3">
+                <span id="gt-turn-dot" class="w-2.5 h-2.5 rounded-full bg-gt-primary"></span>
+                <span id="gt-turn-text" class="text-sm font-medium">Đang khởi tạo...</span>
             </div>
-
-            <div id="gt-goban-container" class="gt-goban relative aspect-square w-full max-w-[700px] max-h-full rounded-sm">
+            <div id="gt-goban-container" class="gt-goban relative aspect-square w-full max-w-[650px] max-h-full rounded-sm">
                 <div id="gt-grid-layer" class="absolute inset-[5%] pointer-events-none"></div>
                 <div id="gt-stones-layer" class="absolute inset-[5%] pointer-events-none"></div>
                 <div id="gt-interaction-layer" class="absolute inset-[5%] cursor-crosshair"></div>
             </div>
-
-            <div class="w-full max-w-[700px] flex justify-between items-center mt-6">
+            <div class="w-full max-w-[650px] flex justify-between items-center mt-6">
                 <div class="flex gap-3">
-                    <button id="btn-resign" class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Đầu hàng</button>
-                    <button id="btn-pass" class="px-4 py-2 bg-white border border-outline-variant/30 rounded-lg text-sm hover:bg-surface-container transition-colors">Bỏ lượt</button>
+                    <button id="btn-resign" class="px-4 py-2 bg-white border border-red-200 text-red-600 rounded-lg text-sm">Đầu hàng</button>
+                    <button id="btn-pass" class="px-4 py-2 bg-primary text-white rounded-lg text-sm">Bỏ lượt</button>
                 </div>
-                <div id="gt-coords" class="text-xs font-mono text-on-surface-variant opacity-40">Tọa độ: --</div>
             </div>
         </section>
 
-        <aside class="gt-info-sidebar bg-surface-container-lowest flex flex-col p-6 gap-6 overflow-y-auto">
+        <aside class="w-[300px] bg-slate-50 flex flex-col p-6 gap-4 border-l">
             <c:set var="isBlack" value="${sessionScope.user eq currentGame.blackPlayer.username}" />
             <c:set var="opponent" value="${isBlack ? currentGame.whitePlayer : currentGame.blackPlayer}" />
 
-            <div class="bg-white rounded-xl p-4 border border-outline-variant/10 shadow-sm border-t-4 border-gt-wood-dark">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-gt-primary text-white flex items-center justify-center font-bold text-xl">
-                        ${opponent != null ? opponent.fullName.charAt(0) : '?'}
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-gt-primary truncate">${opponent != null ? opponent.fullName : "Chờ đối thủ..."}</h3>
-                        <div class="flex items-center gap-2 mt-1 text-xs text-on-surface-variant">
-                            <span class="w-2 h-2 rounded-full ${isBlack ? 'bg-white border' : 'bg-gt-stone-black'}"></span>
-                            ${isBlack ? "Quân Trắng" : "Quân Đen"}
-                            <span class="ml-auto opacity-60">${opponent != null ? opponent.rank : ""}</span>
-                        </div>
-                    </div>
-                </div>
+            <div class="bg-white p-4 rounded-xl border-t-4 border-slate-300 shadow-sm">
+                <div class="font-bold truncate text-slate-700">${opponent != null ? opponent.fullName : 'Chờ đối thủ...'}</div>
+                <div id="timer-opponent" class="text-3xl font-black text-red-500 mt-2">00:00</div>
+                <div id="periods-opponent" class="text-xs font-bold bg-red-50 text-red-600 inline-block px-2 py-1 rounded mt-1">BYO: 3</div>
             </div>
 
-            <div class="flex-1 flex flex-col items-center justify-center opacity-20 pointer-events-none">
-                <span class="material-symbols-outlined text-[64px]">grid_4x4</span>
-            </div>
-
-            <div class="bg-white rounded-xl p-4 border border-outline-variant/10 shadow-sm border-t-4 border-gt-primary">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 rounded-full bg-gt-primary text-white flex items-center justify-center font-bold text-xl">
-                        ${sessionScope.displayName.charAt(0)}
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-gt-primary truncate">${sessionScope.displayName} (Bạn)</h3>
-                        <div class="flex items-center gap-2 mt-1 text-xs text-on-surface-variant">
-                            <span class="w-2 h-2 rounded-full ${isBlack ? 'bg-gt-stone-black' : 'bg-white border'}"></span>
-                            ${isBlack ? "Quân Đen" : "Quân Trắng"}
-                        </div>
-                    </div>
-                </div>
+            <div class="mt-auto bg-white p-4 rounded-xl border-t-4 border-green-500 shadow-md">
+                <div class="font-bold truncate text-slate-800">${sessionScope.displayName} (Bạn)</div>
+                <div id="timer-me" class="text-3xl font-black text-green-600 mt-2">00:00</div>
+                <div id="periods-me" class="text-xs font-bold bg-green-50 text-green-700 inline-block px-2 py-1 rounded mt-1">BYO: 3</div>
             </div>
         </aside>
     </main>
+
+    <div id="scoring-modal" class="fixed inset-0 z-[100] items-center justify-center bg-black/40 p-4">
+        <div class="bg-white rounded-2xl w-full max-w-md p-8 text-center shadow-2xl">
+            <h2 class="text-2xl font-bold mb-6 text-slate-800">KẾT QUẢ VÁN ĐẤU</h2>
+            <div class="flex justify-around mb-8">
+                <div class="flex-1 border-r border-slate-100">
+                    <p class="text-sm text-slate-500 font-bold mb-1">QUÂN ĐEN</p>
+                    <p id="score-black" class="text-4xl font-black text-slate-800">0.0</p>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm text-slate-500 font-bold mb-1">QUÂN TRẮNG</p>
+                    <p id="score-white" class="text-4xl font-black text-slate-800">0.0</p>
+                </div>
+            </div>
+            <div id="winner-banner" class="p-3 bg-slate-100 text-slate-800 rounded-lg font-bold text-lg mb-8 uppercase">--</div>
+            <button onclick="location.href='${pageContext.request.contextPath}/lobby'" class="w-full py-4 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors">QUAY VỀ SẢNH</button>
+        </div>
+    </div>
 </div>
 
 <script>
+    let timeState = {
+        blackMain: 1800000, blackPeriods: 3,
+        whiteMain: 1800000, whitePeriods: 3,
+        periodTime: 30000
+    };
+
+    let timerInterval = null;
+    let currentTurn = "black";
+    let isSelectingDead = false;
+
     const config = {
         id: "${currentGame.id}",
         size: ${currentGame.boardSize},
@@ -265,102 +273,205 @@
         spacing: 100 / (${currentGame.boardSize} - 1)
     };
 
-    let currentTurn = "black";
-    let totalStones = 0;
     const ws = new WebSocket("ws://" + window.location.host + "${pageContext.request.contextPath}/ws/game/" + config.id);
 
     ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
 
-        if (data.type === "INVALID_MOVE") {
-            alert(data.data); // Hiển thị lỗi Tự sát hoặc Ko
-            return;
+        if (data.timeData) {
+            timeState = { ...timeState, ...data.timeData };
+            renderTimers();
         }
 
-        if (data.type === "REMOVE") {
+        if (data.nextTurn) {
+            currentTurn = data.nextTurn;
+            startClocks();
+            updateTurnUI();
+        }
+
+        if (data.type === "SYNC_TURN") {
+            currentTurn = data.nextTurn;
+            updateTurnUI();
+        }
+        else if (data.type === "INVALID") {
+            alert(data.data);
+        }
+        else if (data.type === "GAME_OVER") {
+            alert("Trận đấu kết thúc: " + data.data);
+            window.location.href = "${pageContext.request.contextPath}/lobby";
+        }
+        else if (data.type === "START_DEAD_SELECTION") {
+            isSelectingDead = true;
+            alert("Hai bên đã bỏ lượt. Hãy click chọn các quân chết rồi nhấn Xác nhận điểm.");
+            document.getElementById('gt-turn-text').innerText = "Giai đoạn xác nhận quân chết...";
+            const btnPass = document.getElementById('btn-pass');
+            btnPass.innerText = "Xác nhận điểm";
+            btnPass.classList.replace('bg-primary', 'bg-green-600');
+        }
+        else if (data.type === "UPDATE_DEAD_STONES") {
+            document.querySelectorAll('.gt-stone').forEach(s => s.classList.remove('is-dead'));
+            data.data.forEach(pos => {
+                const el = document.querySelector(`[data-pos="\${pos}"]`);
+                if (el) {
+                    el.classList.add('is-dead');
+                }
+            });
+        }
+        else if (data.type === "FINAL_SCORE") {
+            const sc = data.data;
+            document.getElementById('score-black').innerText = sc.black.toFixed(1);
+            document.getElementById('score-white').innerText = sc.white.toFixed(1);
+
+            const winnerText = sc.black > sc.white ? "Quân Đen Thắng" : "Quân Trắng Thắng";
+            const banner = document.getElementById('winner-banner');
+            banner.innerText = winnerText;
+            banner.className = `p-3 rounded-lg font-bold text-lg mb-8 uppercase \${sc.black > sc.white ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-800'}`;
+
+            document.getElementById('scoring-modal').classList.add('active');
+        }
+        else if (data.type === "REMOVE") {
             data.data.forEach(stone => {
                 const el = document.querySelector(`[data-pos="\${stone.x}-\${stone.y}"]`);
                 if (el) {
-                    el.classList.add('scale-0');
-                    setTimeout(() => {
-                        el.remove();
-                        totalStones--;
-                        calculateTurn();
-                    }, 200);
+                    el.remove();
                 }
             });
-        } else {
+        }
+        else if (data.type === "PASS") {
+            alert("Đối thủ đã bỏ lượt!");
+        }
+        else {
             if (data.isHistory || data.color !== config.role) {
                 addStoneToUI(data.x, data.y, data.color);
             }
         }
     };
 
-    function addStoneToUI(x, y, color) {
-        if (document.querySelector(`[data-pos="\${x}-\${y}"]`)) return false;
+    function startClocks() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+        }
+        timerInterval = setInterval(() => {
+            if (currentTurn === 'black') {
+                if (timeState.blackMain > 0) {
+                    timeState.blackMain -= 1000;
+                }
+            } else {
+                if (timeState.whiteMain > 0) {
+                    timeState.whiteMain -= 1000;
+                }
+            }
+            renderTimers();
+        }, 1000);
+    }
 
+    function renderTimers() {
+        const isIBlack = (config.role === 'black');
+
+        const formatTime = (ms) => {
+            if (ms <= 0) return "00:30";
+            let seconds = Math.floor(ms / 1000);
+            let m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            let s = (seconds % 60).toString().padStart(2, '0');
+            return `\${m}:\${s}`;
+        };
+
+        document.getElementById('timer-me').innerText = formatTime(isIBlack ? timeState.blackMain : timeState.whiteMain);
+        document.getElementById('periods-me').innerText = "BYO: " + (isIBlack ? timeState.blackPeriods : timeState.whitePeriods);
+
+        document.getElementById('timer-opponent').innerText = formatTime(isIBlack ? timeState.whiteMain : timeState.blackMain);
+        document.getElementById('periods-opponent').innerText = "BYO: " + (isIBlack ? timeState.whitePeriods : timeState.blackPeriods);
+    }
+
+    function addStoneToUI(x, y, color) {
+        if (document.querySelector(`[data-pos="\${x}-\${y}"]`)) {
+            return false;
+        }
         const layer = document.getElementById('gt-stones-layer');
         const stone = document.createElement('div');
-        const stoneSize = (config.size === 19) ? 5.2 : 7.5;
+        const sizePercentage = (config.size === 19) ? 5.2 : 7.5;
 
         stone.className = "gt-stone shadow-lg";
         stone.setAttribute('data-pos', `\${x}-\${y}`);
-        stone.style.width = stoneSize + "%"; stone.style.height = stoneSize + "%";
+        stone.style.width = sizePercentage + "%";
+        stone.style.height = sizePercentage + "%";
         stone.style.left = (x * config.spacing) + "%";
         stone.style.top = (y * config.spacing) + "%";
+        stone.style.background = (color === 'black') ? "#111111" : "#ffffff";
 
-        stone.style.background = (color === 'black') ?
-            "radial-gradient(circle at 35% 35%, #444, #111)" :
-            "radial-gradient(circle at 35% 35%, #fff, #ddd)";
-        if (color === 'white') stone.style.border = "1px solid rgba(0,0,0,0.15)";
+        if (color === 'white') {
+            stone.style.border = "1px solid #d1d5db";
+        }
 
         layer.appendChild(stone);
-        totalStones++;
-        calculateTurn();
         return true;
-    }
-
-    function calculateTurn() {
-        currentTurn = (totalStones % 2 === 0) ? "black" : "white";
-        updateTurnUI();
     }
 
     function updateTurnUI() {
         const isMyTurn = (currentTurn === config.role);
-        const text = document.getElementById('gt-turn-text');
-        const dot = document.getElementById('gt-turn-dot');
+        const textElement = document.getElementById('gt-turn-text');
+        const dotElement = document.getElementById('gt-turn-dot');
 
-        text.innerText = isMyTurn ? "Lượt của bạn (\${config.role === 'black' ? 'Đen' : 'Trắng'})" : "Đang chờ đối thủ...";
-        dot.className = "w-2.5 h-2.5 rounded-full " + (isMyTurn ? "bg-green-500 animate-pulse" : "bg-gt-primary opacity-40");
+        textElement.innerText = isMyTurn ? `Lượt của bạn (${config.role == 'black' ? 'Đen' : 'Trắng'})` : "Đang chờ đối thủ...";
+        dotElement.className = "w-2.5 h-2.5 rounded-full " + (isMyTurn ? "bg-green-500 animate-pulse" : "bg-slate-300");
         document.getElementById('gt-interaction-layer').style.cursor = isMyTurn ? "crosshair" : "not-allowed";
     }
 
     document.getElementById('gt-interaction-layer').addEventListener('click', (e) => {
-        if (currentTurn !== config.role) return;
+        if (isSelectingDead) {
+            const r = e.currentTarget.getBoundingClientRect();
+            const x = Math.round(((e.clientX - r.left) / r.width) * (config.size - 1));
+            const y = Math.round(((e.clientY - r.top) / r.height) * (config.size - 1));
+            ws.send(JSON.stringify({ type: "TOGGLE_DEAD", x: x, y: y }));
+            return;
+        }
+
+        if (currentTurn !== config.role) {
+            return;
+        }
 
         const r = e.currentTarget.getBoundingClientRect();
         const x = Math.round(((e.clientX - r.left) / r.width) * (config.size - 1));
         const y = Math.round(((e.clientY - r.top) / r.height) * (config.size - 1));
 
-        if (!document.querySelector(`[data-pos="\${x}-\${y}"]`)) {
-            // Chỉ gửi lệnh đi, Server sẽ kiểm tra tính hợp lệ
-            ws.send(JSON.stringify({ x: x, y: y, color: config.role }));
-            // Lưu ý: Không vẽ ngay ở đây để đợi Server xác nhận (hoặc vẽ nháp rồi xóa nếu sai)
-            // Ở đây ta chọn vẽ nháp để mượt mà:
-            if(addStoneToUI(x, y, config.role)) {
-                // Nếu server báo INVALID_MOVE, ta sẽ xóa sau trong onmessage
-            }
+        if (addStoneToUI(x, y, config.role)) {
+            currentTurn = (config.role === 'black') ? 'white' : 'black';
+            updateTurnUI();
+            ws.send(JSON.stringify({ type: "MOVE", x: x, y: y, color: config.role }));
+        }
+    });
+
+    document.getElementById('btn-pass').addEventListener('click', () => {
+        if (isSelectingDead) {
+            ws.send(JSON.stringify({ type: "CONFIRM_SCORE" }));
+            return;
+        }
+        if (currentTurn === config.role) {
+            ws.send(JSON.stringify({ type: "PASS", color: config.role }));
+        }
+    });
+
+    document.getElementById('btn-resign').addEventListener('click', () => {
+        if (confirm("Bạn có chắc chắn muốn đầu hàng?")) {
+            ws.send(JSON.stringify({ type: "RESIGN", color: config.role }));
         }
     });
 
     window.onload = () => {
-        const grid = document.getElementById('gt-grid-layer');
+        const gridLayer = document.getElementById('gt-grid-layer');
         for (let i = 0; i < config.size; i++) {
-            const p = i * config.spacing;
-            const h = document.createElement('div'); h.className="gt-grid-line w-full h-[1px]"; h.style.top=p+"%"; grid.appendChild(h);
-            const v = document.createElement('div'); v.className="gt-grid-line h-full w-[1px]"; v.style.left=p+"%"; grid.appendChild(v);
+            const position = i * config.spacing;
+
+            const hLine = document.createElement('div');
+            hLine.className = "gt-grid-line w-full h-[1px]";
+            hLine.style.top = position + "%";
+            gridLayer.appendChild(hLine);
+
+            const vLine = document.createElement('div');
+            vLine.className = "gt-grid-line h-full w-[1px]";
+            vLine.style.left = position + "%";
+            gridLayer.appendChild(vLine);
         }
-        calculateTurn();
     };
 </script>
 </body>
