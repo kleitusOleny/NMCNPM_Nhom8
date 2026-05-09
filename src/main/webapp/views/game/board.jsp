@@ -202,13 +202,13 @@
     <main class="flex-1 flex flex-row overflow-hidden">
         <section class="flex-1 flex flex-col items-center justify-center p-8 relative">
             <div class="mb-6 px-4 py-2 bg-white rounded-full shadow-sm border flex items-center gap-3">
-                <span id="gt-turn-dot" class="w-2.5 h-2.5 rounded-full bg-gt-primary"></span>
-                <span id="gt-turn-text" class="text-sm font-medium">Đang khởi tạo...</span>
+                <span id="gt-turn-dot" class="w-2.5 h-2.5 rounded-full bg-slate-300"></span>
+                <span id="gt-turn-text" class="text-sm font-medium">Đang chờ đối thủ vào phòng...</span>
             </div>
             <div id="gt-goban-container" class="gt-goban relative aspect-square w-full max-w-[650px] max-h-full rounded-sm">
                 <div id="gt-grid-layer" class="absolute inset-[5%] pointer-events-none"></div>
                 <div id="gt-stones-layer" class="absolute inset-[5%] pointer-events-none"></div>
-                <div id="gt-interaction-layer" class="absolute inset-[5%] cursor-crosshair"></div>
+                <div id="gt-interaction-layer" class="absolute inset-[5%] cursor-not-allowed"></div>
             </div>
             <div class="w-full max-w-[650px] flex justify-between items-center mt-6">
                 <div class="flex gap-3">
@@ -265,6 +265,7 @@
     let timerInterval = null;
     let currentTurn = "black";
     let isSelectingDead = false;
+    let isGameStarted = false; // Cờ kiểm soát trạng thái phòng
 
     const config = {
         id: "${currentGame.id}",
@@ -277,6 +278,18 @@
 
     ws.onmessage = (e) => {
         const data = JSON.parse(e.data);
+
+        // Bắt sự kiện bắt đầu game khi đủ người
+        if (data.type === "GAME_STARTED") {
+            isGameStarted = true;
+            if (data.data) {
+                timeState = { ...timeState, ...data.data };
+                renderTimers();
+            }
+            updateTurnUI();
+            startClocks();
+            return;
+        }
 
         if (data.timeData) {
             timeState = { ...timeState, ...data.timeData };
@@ -348,6 +361,8 @@
     };
 
     function startClocks() {
+        if (!isGameStarted) return;
+
         if (timerInterval) {
             clearInterval(timerInterval);
         }
@@ -408,16 +423,28 @@
     }
 
     function updateTurnUI() {
+        if (!isGameStarted) {
+            document.getElementById('gt-turn-text').innerText = "Đang chờ đối thủ vào phòng...";
+            document.getElementById('gt-turn-dot').className = "w-2.5 h-2.5 rounded-full bg-slate-300";
+            document.getElementById('gt-interaction-layer').style.cursor = "not-allowed";
+            return;
+        }
+
         const isMyTurn = (currentTurn === config.role);
         const textElement = document.getElementById('gt-turn-text');
         const dotElement = document.getElementById('gt-turn-dot');
 
-        textElement.innerText = isMyTurn ? `Lượt của bạn (${config.role == 'black' ? 'Đen' : 'Trắng'})` : "Đang chờ đối thủ...";
+        textElement.innerText = isMyTurn ? `Lượt của bạn (\${config.role === 'black' ? 'Đen' : 'Trắng'})` : "Đang chờ đối thủ...";
         dotElement.className = "w-2.5 h-2.5 rounded-full " + (isMyTurn ? "bg-green-500 animate-pulse" : "bg-slate-300");
         document.getElementById('gt-interaction-layer').style.cursor = isMyTurn ? "crosshair" : "not-allowed";
     }
 
     document.getElementById('gt-interaction-layer').addEventListener('click', (e) => {
+        if (!isGameStarted) {
+            alert("Vui lòng chờ đối thủ vào phòng để bắt đầu!");
+            return;
+        }
+
         if (isSelectingDead) {
             const r = e.currentTarget.getBoundingClientRect();
             const x = Math.round(((e.clientX - r.left) / r.width) * (config.size - 1));
@@ -442,6 +469,8 @@
     });
 
     document.getElementById('btn-pass').addEventListener('click', () => {
+        if (!isGameStarted) return;
+
         if (isSelectingDead) {
             ws.send(JSON.stringify({ type: "CONFIRM_SCORE" }));
             return;
@@ -452,6 +481,7 @@
     });
 
     document.getElementById('btn-resign').addEventListener('click', () => {
+        if (!isGameStarted) return;
         if (confirm("Bạn có chắc chắn muốn đầu hàng?")) {
             ws.send(JSON.stringify({ type: "RESIGN", color: config.role }));
         }

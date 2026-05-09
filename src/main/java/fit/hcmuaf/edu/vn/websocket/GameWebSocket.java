@@ -22,9 +22,9 @@ public class GameWebSocket {
     private static Map<Long, RoomTimer> gameTimers = new ConcurrentHashMap<>();
     private final Gson gson = new Gson();
     
-    public static class Stone {
+    public static class StoneCoords {
         public int x, y;
-        public Stone(int x, int y) {
+        public StoneCoords(int x, int y) {
             this.x = x;
             this.y = y;
         }
@@ -64,6 +64,7 @@ public class GameWebSocket {
         public PlayerTimer white;
         public long lastTurnStartTime;
         public String currentTurn;
+        public boolean isGameStarted; // Thêm trạng thái bắt đầu game
         
         public RoomTimer(String timeControl) {
             try {
@@ -77,41 +78,64 @@ public class GameWebSocket {
                 this.white = new PlayerTimer(mainMin, p, pSec);
                 this.lastTurnStartTime = System.currentTimeMillis();
                 this.currentTurn = "black";
+                this.isGameStarted = false;
             } catch (Exception e) {
                 this.black = new PlayerTimer(30, 3, 30);
                 this.white = new PlayerTimer(30, 3, 30);
                 this.lastTurnStartTime = System.currentTimeMillis();
                 this.currentTurn = "black";
+                this.isGameStarted = false;
             }
         }
     }
     
+    private Map<String, Object> getTimeData(RoomTimer timer) {
+        Map<String, Object> timeData = new HashMap<>();
+        timeData.put("blackMain", timer.black.mainTimeMillis);
+        timeData.put("blackPeriods", timer.black.periods);
+        timeData.put("whiteMain", timer.white.mainTimeMillis);
+        timeData.put("whitePeriods", timer.white.periods);
+        return timeData;
+    }
+    
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") Long roomId) {
-        roomSessions.computeIfAbsent(roomId, k -> Collections.synchronizedSet(new HashSet<>())).add(session);
+        Set<Session> sessions = roomSessions.computeIfAbsent(roomId, k -> Collections.synchronizedSet(new HashSet<>()));
+        sessions.add(session);
+        
         RoomDAO dao = new RoomDAO();
         GameRoom room = dao.findById(roomId);
         
-        if (room != null && room.getMoves() != null) {
+        if (room != null) {
+            RoomTimer timer = gameTimers.computeIfAbsent(roomId, k -> new RoomTimer(room.getTimeControl()));
             List<GameMove> moves = room.getMoves();
-            for (GameMove m : moves) {
-                Map<String, Object> historyMove = new HashMap<>();
-                historyMove.put("x", m.getX());
-                historyMove.put("y", m.getY());
-                historyMove.put("color", m.getColor());
-                historyMove.put("isHistory", true);
-                try {
-                    session.getBasicRemote().sendText(gson.toJson(historyMove));
-                } catch (IOException e) {
-                    e.printStackTrace();
+            
+            // Nếu bàn cờ đã có nước đi, nghĩa là game đã bắt đầu từ trước (trường hợp F5)
+            if (moves != null && !moves.isEmpty()) {
+                timer.isGameStarted = true;
+                for (GameMove m : moves) {
+                    Map<String, Object> historyMove = new HashMap<>();
+                    historyMove.put("x", m.getX());
+                    historyMove.put("y", m.getY());
+                    historyMove.put("color", m.getColor());
+                    historyMove.put("isHistory", true);
+                    try { session.getBasicRemote().sendText(gson.toJson(historyMove)); } catch (IOException e) { e.printStackTrace(); }
                 }
             }
             
-            String startTurn = (moves.size() % 2 == 0) ? "black" : "white";
-            try {
-                session.getBasicRemote().sendText(gson.toJson(new GameResponse("SYNC_TURN", null, startTurn)));
-            } catch (IOException e) {
-                e.printStackTrace();
+            // Kiểm tra đủ 2 người để bắt đầu game
+            if (sessions.size() >= 2 && !timer.isGameStarted) {
+                timer.isGameStarted = true;
+                timer.lastTurnStartTime = System.currentTimeMillis();
+                broadcast(roomId, gson.toJson(new GameResponse("GAME_STARTED", getTimeData(timer))), null);
+            } else if (timer.isGameStarted) {
+                // Gửi trạng thái GAME_STARTED cho người vừa reconnect
+                try { session.getBasicRemote().sendText(gson.toJson(new GameResponse("GAME_STARTED", getTimeData(timer)))); } catch (IOException e) { e.printStackTrace(); }
+            }
+            
+            if (moves != null) {
+                String startTurn = (moves.size() % 2 == 0) ? "black" : "white";
+                try { session.getBasicRemote().sendText(gson.toJson(new GameResponse("SYNC_TURN", null, startTurn))); } catch (IOException e) { e.printStackTrace(); }
             }
         }
     }
@@ -128,6 +152,13 @@ public class GameWebSocket {
             
             RoomTimer timer = gameTimers.computeIfAbsent(roomId, k -> new RoomTimer(room.getTimeControl()));
             
+            // Chặn thao tác nếu game chưa bắt đầu
+            if (!timer.isGameStarted) {
+                session.getBasicRemote().sendText(gson.toJson(new GameResponse("INVALID", "Vui lòng chờ đối thủ vào phòng để bắt đầu!")));
+                return;
+            }
+            
+            // Chỉ tính giờ khi đang đánh cờ
             if (!"TOGGLE_DEAD".equals(type) && !"CONFIRM_SCORE".equals(type)) {
                 long now = System.currentTimeMillis();
                 long elapsed = now - timer.lastTurnStartTime;
@@ -151,11 +182,7 @@ public class GameWebSocket {
                 timer.lastTurnStartTime = now;
             }
             
-            Map<String, Object> timeData = new HashMap<>();
-            timeData.put("blackMain", timer.black.mainTimeMillis);
-            timeData.put("blackPeriods", timer.black.periods);
-            timeData.put("whiteMain", timer.white.mainTimeMillis);
-            timeData.put("whitePeriods", timer.white.periods);
+            Map<String, Object> timeData = getTimeData(timer);
             
             if ("RESIGN".equals(type)) {
                 String color = (String) data.get("color");
@@ -229,9 +256,7 @@ public class GameWebSocket {
                 }
             }
             
-            if (currentBoard[x][y] != 0) {
-                return;
-            }
+            if (currentBoard[x][y] != 0) return;
             
             GoLogic logic = new GoLogic(size);
             logic.setBoard(currentBoard);
@@ -250,18 +275,17 @@ public class GameWebSocket {
             }
             nextBoard[x][y] = myColorInt;
             
-            List<Stone> toRemove = new ArrayList<>();
+            List<StoneCoords> toRemove = new ArrayList<>();
             int[][] neighbors = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
             
             for (int[] n : neighbors) {
-                int nx = x + n[0];
-                int ny = y + n[1];
+                int nx = x + n[0], ny = y + n[1];
                 if (nx >= 0 && nx < size && ny >= 0 && ny < size && nextBoard[nx][ny] == opponentColorInt) {
                     logic.setBoard(nextBoard);
                     List<int[]> group = logic.findGroup(nx, ny, opponentColorInt);
                     if (logic.countLiberties(group) == 0) {
                         for (int[] stonePos : group) {
-                            toRemove.add(new Stone(stonePos[0], stonePos[1]));
+                            toRemove.add(new StoneCoords(stonePos[0], stonePos[1]));
                             nextBoard[stonePos[0]][stonePos[1]] = 0;
                         }
                     }
@@ -273,7 +297,7 @@ public class GameWebSocket {
                 return;
             }
             
-            for (Stone s : toRemove) {
+            for (StoneCoords s : toRemove) {
                 dao.removeMoveAt(roomId, s.x, s.y);
             }
             
