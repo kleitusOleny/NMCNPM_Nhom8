@@ -1,15 +1,19 @@
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <!DOCTYPE html>
 
-<html lang="vi"><head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Gia nhập kỳ viện - Tâm Thế</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-<script id="tailwind-config">
+<html lang="vi">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Gia nhập kỳ viện - Tâm Thế</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+          rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+          rel="stylesheet"/>
+    <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -89,12 +93,12 @@
                         "h1-display": ["Inter"]
                     },
                     "fontSize": {
-                        "label-caps": ["12px", { "lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "600" }],
-                        "h2-title": ["24px", { "lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "500" }],
-                        "body-sm": ["14px", { "lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400" }],
-                        "body-main": ["16px", { "lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400" }],
-                        "button-text": ["15px", { "lineHeight": "1.0", "letterSpacing": "0.01em", "fontWeight": "500" }],
-                        "h1-display": ["32px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600" }]
+                        "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "h2-title": ["24px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                        "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0", "fontWeight": "400"}],
+                        "body-main": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "button-text": ["15px", {"lineHeight": "1.0", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "h1-display": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}]
                     }
                 }
             }
@@ -102,54 +106,78 @@
     </script>
 </head>
 <body class="bg-surface text-on-surface font-body-main min-h-screen flex items-center justify-center p-md sm:p-margin relative overflow-hidden">
-<div class="absolute inset-0 z-0 opacity-30 pointer-events-none" style="background-image: radial-gradient(circle at top right, #e1c299 0%, transparent 40%), radial-gradient(circle at bottom left, #d3e4fa 0%, transparent 40%);"></div>
+<div class="absolute inset-0 z-0 opacity-30 pointer-events-none"
+     style="background-image: radial-gradient(circle at top right, #e1c299 0%, transparent 40%), radial-gradient(circle at bottom left, #d3e4fa 0%, transparent 40%);"></div>
 <main class="w-full max-w-[480px] z-10">
-<div class="bg-surface-container-lowest rounded-xl shadow-[0_10px_25px_-5px_rgba(26,42,58,0.08)] border-t-[3px] border-secondary p-xl flex flex-col gap-xl">
-<header class="flex flex-col items-center gap-sm">
-<div class="font-h1-display text-h1-display text-primary flex items-center gap-sm">
-<span class="material-symbols-outlined text-[36px]" style="font-variation-settings: 'FILL' 1;">eco</span>
-                    Tâm Thế
+    <div class="bg-surface-container-lowest rounded-xl shadow-[0_10px_25px_-5px_rgba(26,42,58,0.08)] border-t-[3px] border-secondary p-xl flex flex-col gap-xl">
+        <header class="flex flex-col items-center gap-sm">
+            <div class="font-h1-display text-h1-display text-primary flex items-center gap-sm">
+                <span class="material-symbols-outlined text-[36px]"
+                      style="font-variation-settings: 'FILL' 1;">eco</span>
+                Tâm Thế
+            </div>
+            <h1 class="font-h2-title text-h2-title text-on-surface-variant text-center">Gia nhập kỳ viện</h1>
+        </header>
+        <c:if test="${not empty errorMsg}">
+            <div class="alert alert-error">
+                <span class="material-symbols-outlined">error</span>
+                    ${errorMsg}
+            </div>
+        </c:if>
+        <form class="flex flex-col gap-lg" action="${pageContext.request.contextPath}/register" method="POST">
+            <div class="flex flex-col gap-xs group">
+                <label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors"
+                       for="fullname">Họ và tên</label>
+                <input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline"
+                       id="fullname" name="fullname" placeholder="Nhập họ và tên của bạn" required="" type="text"/>
+            </div>
+            <div class="flex flex-col gap-xs group">
+                <label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors"
+                       for="email">Email</label>
+                <input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline"
+                       id="email" name="email" placeholder="ví dụ: kythu@tamthe.vn" required="" type="email"/>
+            </div>
+            <div class="flex flex-col gap-xs group">
+                <label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors"
+                       for="username">Tên đăng nhập</label>
+                <input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline"
+                       id="username" name="username" placeholder="Sử dụng trong game" required="" type="text"/>
+            </div>
+            <div class="flex flex-col gap-xs group">
+                <label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors"
+                       for="password">Mật khẩu</label>
+                <input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline"
+                       id="password" name="password" placeholder="Tối thiểu 8 ký tự" required="" type="password"/>
+            </div>
+            <div class="flex flex-col gap-xs group">
+                <label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors"
+                       for="confirm_password">Xác nhận mật khẩu</label>
+                <input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline"
+                       id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu" required=""
+                       type="password"/>
+            </div>
+            <div class="flex items-start gap-md mt-sm">
+                <div class="flex items-center h-5">
+                    <input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-transparent cursor-pointer"
+                           id="terms" name="terms" required="" type="checkbox"/>
                 </div>
-<h1 class="font-h2-title text-h2-title text-on-surface-variant text-center">Gia nhập kỳ viện</h1>
-</header>
-<form class="flex flex-col gap-lg">
-<div class="flex flex-col gap-xs group">
-<label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors" for="fullname">Họ và tên</label>
-<input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline" id="fullname" name="fullname" placeholder="Nhập họ và tên của bạn" required="" type="text"/>
-</div>
-<div class="flex flex-col gap-xs group">
-<label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors" for="email">Email</label>
-<input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline" id="email" name="email" placeholder="ví dụ: kythu@tamthe.vn" required="" type="email"/>
-</div>
-<div class="flex flex-col gap-xs group">
-<label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors" for="username">Tên đăng nhập</label>
-<input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline" id="username" name="username" placeholder="Sử dụng trong game" required="" type="text"/>
-</div>
-<div class="flex flex-col gap-xs group">
-<label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors" for="password">Mật khẩu</label>
-<input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline" id="password" name="password" placeholder="Tối thiểu 8 ký tự" required="" type="password"/>
-</div>
-<div class="flex flex-col gap-xs group">
-<label class="font-label-caps text-label-caps text-on-surface-variant group-focus-within:text-primary transition-colors" for="confirm_password">Xác nhận mật khẩu</label>
-<input class="w-full bg-transparent border-0 border-b border-outline-variant px-0 py-sm font-body-main text-body-main text-on-surface focus:ring-0 focus:border-primary transition-colors placeholder:text-outline" id="confirm_password" name="confirm_password" placeholder="Nhập lại mật khẩu" required="" type="password"/>
-</div>
-<div class="flex items-start gap-md mt-sm">
-<div class="flex items-center h-5">
-<input class="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary bg-transparent cursor-pointer" id="terms" name="terms" required="" type="checkbox"/>
-</div>
-<label class="font-body-sm text-body-sm text-on-surface-variant cursor-pointer select-none" for="terms">
-                        Tôi đồng ý với các <a class="text-primary hover:underline font-medium" href="#">điều khoản</a> và <a class="text-primary hover:underline font-medium" href="#">quy định</a> của Tâm Thế
-                    </label>
-</div>
-<button class="w-full bg-primary text-on-primary font-button-text text-button-text py-3 px-lg rounded-lg shadow-sm hover:shadow-md hover:bg-tertiary active:scale-[0.98] transition-all mt-md flex justify-center items-center gap-sm" type="submit">
-                    Tạo tài khoản
-                    <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-</button>
-</form>
-<div class="text-center font-body-sm text-body-sm text-on-surface-variant border-t border-surface-variant pt-lg">
-                Đã có tài khoản? 
-                <a class="text-primary font-button-text text-button-text hover:underline ml-xs" href="${pageContext.request.contextPath}/login">Đăng nhập</a>
-</div>
-</div>
+                <label class="font-body-sm text-body-sm text-on-surface-variant cursor-pointer select-none" for="terms">
+                    Tôi đồng ý với các <a class="text-primary hover:underline font-medium" href="#">điều khoản</a> và <a
+                        class="text-primary hover:underline font-medium" href="#">quy định</a> của Tâm Thế
+                </label>
+            </div>
+            <button class="w-full bg-primary text-on-primary font-button-text text-button-text py-3 px-lg rounded-lg shadow-sm hover:shadow-md hover:bg-tertiary active:scale-[0.98] transition-all mt-md flex justify-center items-center gap-sm"
+                    type="submit">
+                Tạo tài khoản
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+            </button>
+        </form>
+        <div class="text-center font-body-sm text-body-sm text-on-surface-variant border-t border-surface-variant pt-lg">
+            Đã có tài khoản?
+            <a class="text-primary font-button-text text-button-text hover:underline ml-xs"
+               href="${pageContext.request.contextPath}/login">Đăng nhập</a>
+        </div>
+    </div>
 </main>
-</body></html>
+</body>
+</html>
