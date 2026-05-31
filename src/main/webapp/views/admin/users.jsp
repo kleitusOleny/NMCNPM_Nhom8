@@ -110,6 +110,23 @@
 
     <div class="page-body">
       <!-- Stat Cards -->
+      <c:if test="${not empty message}">
+        <div class="alert alert-success"
+             style="margin-bottom:16px;">
+
+          ${message}
+
+        </div>
+      </c:if>
+
+      <c:if test="${not empty error}">
+        <div class="alert alert-error"
+             style="margin-bottom:16px;">
+
+          ${error}
+
+        </div>
+      </c:if>
       <div class="stat-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: var(--space-lg);">
         <div class="stat-card">
           <div class="stat-icon">👥</div>
@@ -134,22 +151,53 @@
       </div>
 
       <!-- Filter Bar -->
-      <div class="filter-bar">
-        <div class="search-input" style="flex:1;position:relative;">
-          <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;color:var(--color-outline);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input class="form-input" style="padding-left:40px;" type="text" id="searchUser" placeholder="Tìm theo tên, email..." oninput="filterTable()">
+      <form method="get"
+            style="display:flex;flex:1;gap:12px;">
+
+        <div class="search-input"
+             style="flex:1;position:relative;">
+
+          <svg style="position:absolute;
+                      left:12px;
+                      top:50%;
+                      transform:translateY(-50%);
+                      width:16px;
+                      height:16px;
+                      color:var(--color-outline);"
+
+               viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="2">
+
+            <circle cx="11"
+                    cy="11"
+                    r="8"/>
+
+            <line x1="21"
+                  y1="21"
+                  x2="16.65"
+                  y2="16.65"/>
+
+          </svg>
+
+          <input class="form-input"
+                 style="padding-left:40px;"
+                 type="text"
+                 name="keyword"
+                 value="${keyword}"
+                 placeholder="Tìm theo tên, username">
+
         </div>
-        <select class="form-input form-select" style="width:160px;" id="filterStatus" onchange="filterTable()">
-          <option value="">Tất cả trạng thái</option>
-          <option value="active">Đang hoạt động</option>
-          <option value="banned">Đã khóa</option>
-        </select>
-        <select class="form-input form-select" style="width:140px;" id="filterRole" onchange="filterTable()">
-          <option value="">Tất cả vai trò</option>
-          <option value="user">Người dùng</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
+
+        <button class="btn btn-primary"
+                type="submit">
+
+          Tìm kiếm
+
+        </button>
+
+      </form>
 
       <!-- Table -->
       <div class="table-wrapper">
@@ -170,23 +218,32 @@
           </thead>
           <tbody id="usersTableBody">
             <c:choose>
-              <c:when test="${not empty userList}">
-                <c:forEach items="${userList}" var="u">
-                  <tr data-status="${u.status}" data-role="${u.role}">
-                    <td>
-                      <div class="user-info-cell">
-                        <div class="user-avatar-sm">${u.fullName.charAt(0)}</div>
-                        <div>
-                          <div class="user-name">${u.fullName}</div>
-                          <div class="user-email">${u.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td><span class="rank-chip">${u.rank}</span></td>
-                    <td><strong>${u.elo}</strong></td>
-                    <td>${u.gamesPlayed}</td>
-                    <td>
-                      <c:choose>
+
+              <c:when test="${u.status eq 'ACTIVE'}">
+
+                <span class="badge badge-success">
+                  ● Hoạt động
+                </span>
+
+              </c:when>
+
+              <c:when test="${u.status eq 'BLOCKED'}">
+
+                <span class="badge badge-error">
+                  ● Bị khóa
+                </span>
+
+              </c:when>
+
+              <c:otherwise>
+
+                <span class="badge badge-navy">
+                  ${u.status}
+                </span>
+
+              </c:otherwise>
+
+            </c:choose>
                         <c:when test="${u.status eq 'active'}"><span class="badge badge-success">● Hoạt động</span></c:when>
                         <c:when test="${u.status eq 'banned'}"><span class="badge badge-error">● Bị khóa</span></c:when>
                         <c:otherwise><span class="badge badge-navy">${u.status}</span></c:otherwise>
@@ -201,9 +258,44 @@
                         <button class="btn-icon" title="Chỉnh sửa" onclick="openEditModal(${u.id})">
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
-                        <button class="btn-icon danger" title="Khóa tài khoản" onclick="confirmBan(${u.id}, '${u.fullName}')">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                        </button>
+                       <form method="post"
+                             action="${pageContext.request.contextPath}/admin/users"
+                             style="display:inline;">
+
+                         <input type="hidden"
+                                name="userId"
+                                value="${u.id}" />
+
+                         <button type="submit"
+                                 class="btn-icon danger"
+
+                                 title="${u.status eq 'ACTIVE'
+                                         ? 'Khóa tài khoản'
+                                         : 'Mở khóa tài khoản'}"
+
+                                 onclick="return confirm(
+                                     'Bạn có chắc muốn thay đổi trạng thái tài khoản này?'
+                                 )">
+
+                           <svg width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2">
+
+                             <circle cx="12" cy="12" r="10"/>
+
+                             <line x1="4.93"
+                                   y1="4.93"
+                                   x2="19.07"
+                                   y2="19.07"/>
+
+                           </svg>
+
+                         </button>
+
+                       </form>
                       </div>
                     </td>
                   </tr>
@@ -255,15 +347,24 @@
           </tbody>
         </table>
         <!-- Pagination -->
-        <div class="pagination">
-          <button class="page-btn">←</button>
-          <button class="page-btn active">1</button>
-          <button class="page-btn">2</button>
-          <button class="page-btn">3</button>
-          <span style="color:var(--color-outline);padding:0 4px;">...</span>
-          <button class="page-btn">125</button>
-          <button class="page-btn">→</button>
-        </div>
+       <div class="pagination">
+
+         <c:forEach begin="1"
+                    end="${totalPages}"
+                    var="i">
+
+           <a href="?page=${i}&keyword=${keyword}"
+
+              class="page-btn
+              ${currentPage == i ? 'active' : ''}">
+
+             ${i}
+
+           </a>
+
+         </c:forEach>
+
+       </div>
       </div>
     </div>
   </main>
